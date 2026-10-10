@@ -10,6 +10,7 @@ import { setupTabMsgListeners } from './messageListeners/tabs'
 import { setupSettingsCloudSync } from './settingsCloudSync'
 import { setupSettingsStorageCoordinator } from './settingsStorageCoordinator'
 import { setupTopBarStateBroker } from './topBarStateBroker'
+import { syncUposRedirectRule } from './uposRedirectManager'
 import { setupWatchLaterStateBroker } from './watchLaterStateBroker'
 import { initWbiKeys } from './wbiSign'
 
@@ -69,6 +70,7 @@ async function syncPreventMobileRedirectRule(enabled: boolean) {
 
 const preventMobileRedirectReady = browser.storage.local.get('settings').then((result) => {
   preventMobileRedirectEnabled = isPreventMobileRedirectEnabled(result.settings)
+  void syncUposRedirectRule(result.settings || {})
   return syncPreventMobileRedirectRule(preventMobileRedirectEnabled)
 })
 
@@ -78,6 +80,7 @@ browser.storage.onChanged.addListener((changes, areaName) => {
 
   preventMobileRedirectEnabled = isPreventMobileRedirectEnabled(changes.settings.newValue)
   void syncPreventMobileRedirectRule(preventMobileRedirectEnabled)
+  void syncUposRedirectRule(changes.settings.newValue || {})
 })
 
 // 扩展启动时初始化 WBI 密钥

@@ -503,6 +503,15 @@ settings:
   enable_listen_video_desc: 开启后可通过播放器按钮或快捷键进入听视频。关闭时退出听视频、恢复弹幕并停止相关监听；关闭后打开页面不加载功能模块。此功能隐藏画面，视频流仍会下载和解码。
   show_listen_video_button: 显示播放器「听视频」按钮
   show_listen_video_button_desc: 启用后，在视频播放器控制栏中显示听视频切换按钮：隐藏视频画面仅保留声音，以封面和标题组成音频播放界面。关闭后仍可使用快捷键切换，可在「快捷键」设置中配置。
+  upos_optimization_title: 视频 CDN 与海外线路优选 (PiliBabel 加速)
+  upos_optimization_desc: 针对海外用户（如日本、港澳台等）由于骨干网或 PCDN 调度导致的视频卡顿问题，强制重写至高速海外/国内优质 CDN 镜像。
+  enable_upos_optimization: 启用 CDN 线路优选加速
+  enable_upos_optimization_desc: 开启后将通过浏览器内核（declarativeNetRequest）自动拦截并重定向视频分段至指定的加速节点。
+  upos_node_select: 选择加速节点
+  upos_node_select_desc: 海外直连推荐选用「腾讯云海外节点 (mirrorcosov)」或「阿里云海外节点 (mirroraliov)」。
+  custom_upos_host: 自定义 UPOS 节点 Host
+  custom_upos_host_desc: '输入自定义 CDN 域名，例如: upos-sz-mirrorcosov.bilivideo.com'
+  upos_node_speed_test: 节点网络测速 (大阪/海外实测)
   keep_collection_video_default_mode: 合集视频保持默认模式
   keep_collection_video_default_mode_desc: 当启用时，合集视频将始终使用默认播放器模式，不会应用宽屏或全屏设置
   keep_watch_later_video_default_mode: 稍后再看保持默认模式

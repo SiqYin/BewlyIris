@@ -575,6 +575,11 @@ export interface Settings {
   customPlayOrderOverrides: CustomPlayOrderOverrides // 不同视频类型的自定义播放默认值覆盖
   randomPlayMode: 'manual' | 'auto' // 随机播放模式：手动切换或自动启用
   minVideosForRandom: number // 启用随机播放的最小视频数量
+
+  // UPOS / CDN 海外线路优选设置
+  enableUposOptimization: boolean // 是否启用 UPOS CDN 优选加速
+  uposNode: string // 选中的 UPOS 节点 ID (如 mirrorcosov)
+  customUposHost: string // 自定义 UPOS 节点域名
 }
 
 // 本地存储配置默认值
@@ -943,6 +948,11 @@ export const originalSettings: Settings = {
   },
   randomPlayMode: 'manual', // 随机播放模式：手动切换或自动启用
   minVideosForRandom: 5, // 启用随机播放的最小视频数量
+
+  // UPOS / CDN 海外线路优选设置
+  enableUposOptimization: false,
+  uposNode: 'mirrorcosov', // 默认海外腾讯云镜像
+  customUposHost: '',
 }
 
 // 本地存储配置（不会同步到云端）
