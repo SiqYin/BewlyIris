@@ -10,7 +10,7 @@ import { isDev, isFirefox, isSafari, log, r } from './utils'
 const extensionDirectory = isFirefox
   ? 'extension-firefox'
   : isSafari ? 'extension-safari' : 'extension'
-const contributorsImageUrl = 'https://contrib.rocks/image?repo=SiqYin/IrisCat'
+const contributorsImageUrl = 'https://contrib.rocks/image?repo=SiqYin/BewlyIris'
 const contributorsImageCachePath = r('.cache/bewlycat/contributors.svg')
 const contributorsImagePath = r(extensionDirectory, 'assets/contributors.svg')
 

@@ -71,7 +71,7 @@ async function applyRule(targetHost: string | null) {
       removeRuleIds: [UPOS_REDIRECT_RULE_ID],
       addRules: [],
     })
-    console.log('[IrisCat UPOS] 未启用覆盖，走 B 站原生调度。')
+    console.log('[BewlyIris UPOS] 未启用覆盖，走 B 站原生调度。')
     return
   }
 
@@ -94,7 +94,7 @@ async function applyRule(targetHost: string | null) {
     removeRuleIds: [UPOS_REDIRECT_RULE_ID],
     addRules: [uposRule],
   })
-  console.log(`[IrisCat UPOS] 视频流重定向至: ${targetHost}`)
+  console.log(`[BewlyIris UPOS] 视频流重定向至: ${targetHost}`)
 }
 
 export async function syncUposRedirectRule(settings: Partial<Settings>) {
@@ -109,6 +109,6 @@ export async function syncUposRedirectRule(settings: Partial<Settings>) {
     await applyRule(host)
   }
   catch (error) {
-    console.error('[IrisCat UPOS] 更新 UPOS 重定向规则失败:', error)
+    console.error('[BewlyIris UPOS] 更新 UPOS 重定向规则失败:', error)
   }
 }

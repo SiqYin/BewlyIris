@@ -64,7 +64,7 @@ const isPluginSearchResultsPage = computed(() => {
 
 const options = readonly([
   {
-    name: 'IrisCat',
+    name: 'BewlyIris',
     shortName: 'Iris',
     useOriginalBiliPage: false,
   },

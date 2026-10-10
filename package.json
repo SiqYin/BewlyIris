@@ -1,12 +1,12 @@
 {
-  "name": "iris-cat",
-  "displayName": "IrisCat",
+  "name": "bewly-iris",
+  "displayName": "BewlyIris",
   "type": "module",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "packageManager": "pnpm@11.17.0",
-  "description": "IrisCat: make Bilibili more comfortable to use, with built-in PiliBabel overseas CDN node optimization.",
-  "homepage": "https://github.com/SiqYin/IrisCat",
+  "description": "BewlyIris: make Bilibili more comfortable to use, with built-in PiliBabel overseas CDN node optimization.",
+  "homepage": "https://github.com/SiqYin/BewlyIris",
   "scripts": {
     "build-pack": "pnpm build && pnpm build-firefox && pnpm pack:zip && pnpm pack:zip-firefox && pnpm pack:zip-firefox-sources",
     "dev": "pnpm run clear && cross-env NODE_ENV=development run-p --npm-path pnpm dev:*",

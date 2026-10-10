@@ -5,7 +5,7 @@ import { settings } from '~/logic'
 
 import { version } from '../../../../../package.json'
 
-const GITHUB_RELEASES_URL = 'https://github.com/SiqYin/IrisCat/releases'
+const GITHUB_RELEASES_URL = 'https://github.com/SiqYin/BewlyIris/releases'
 const BILIBILI_DYNAMIC_URL = 'https://space.bilibili.com/32487218/dynamic'
 
 const dialogVisible = ref(false)
