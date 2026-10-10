@@ -503,6 +503,9 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
     'settings.show_video_screenshot_button',
     'settings.enable_listen_video',
     'settings.show_listen_video_button',
+    'settings.enable_upos_optimization',
+    'settings.upos_node_select',
+    'settings.upos_node_speed_test',
   ]),
   ...createEntries(playerRoute, [
     'settings.video_player_scroll_mode.title',
