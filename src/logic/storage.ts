@@ -578,8 +578,9 @@ export interface Settings {
 
   // UPOS / CDN 海外线路优选设置
   enableUposOptimization: boolean // 是否启用 UPOS CDN 优选加速
-  uposNode: string // 选中的 UPOS 节点 ID (如 mirrorcosov)
+  uposNode: string // 选中的 UPOS 节点 ID（'auto' 为按 IP/地区自动选择）
   customUposHost: string // 自定义 UPOS 节点域名
+  uposRegion: 'auto' | 'mainland' | 'japan' | 'hkMoTw' | 'other' // 使用地区覆盖（auto=自动识别）
 }
 
 // 本地存储配置默认值
@@ -950,9 +951,10 @@ export const originalSettings: Settings = {
   minVideosForRandom: 5, // 启用随机播放的最小视频数量
 
   // UPOS / CDN 海外线路优选设置
-  enableUposOptimization: false,
-  uposNode: 'mirrorcosov', // 默认海外腾讯云镜像
+  enableUposOptimization: true, // 默认开启：按 IP 自动选源
+  uposNode: 'auto', // 默认自动：大陆走原生、海外挑最快 *ov 镜像
   customUposHost: '',
+  uposRegion: 'auto', // 使用地区默认自动识别（可手动覆盖）
 }
 
 // 本地存储配置（不会同步到云端）

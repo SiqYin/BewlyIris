@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import browser from 'webextension-polyfill'
 
 import Button from '~/components/Button.vue'
 import Radio from '~/components/Radio.vue'
 import Select from '~/components/Select.vue'
-import { UPOS_NODES } from '~/constants/uposNodes'
+import { AUTO_UPOS_NODE_ID, UPOS_NODES } from '~/constants/uposNodes'
 import { settings } from '~/logic'
 
 import SettingsItem from '../../components/SettingsItem.vue'
@@ -26,15 +27,84 @@ const pingResults = ref<PingResult>({})
 const isTestingAll = ref(false)
 
 const nodeOptions = computed(() => {
-  const options = UPOS_NODES.map(node => ({
-    label: `${node.name} (${node.region === 'overseas' ? '海外优化' : '大陆'})`,
-    value: node.id,
-  }))
+  const options = [
+    { label: t('settings.upos_node_auto') || '自动（按当前网络/地区智能选择）', value: AUTO_UPOS_NODE_ID },
+    ...UPOS_NODES.map(node => ({
+      label: `${node.name} (${node.region === 'overseas' ? '海外' : '大陆'})`,
+      value: node.id,
+    })),
+  ]
   options.push({
     label: '自定义 CDN 域名',
     value: 'custom',
   })
   return options
+})
+
+const regionOptions = [
+  { label: '自动识别', value: 'auto' },
+  { label: '中国大陆', value: 'mainland' },
+  { label: '日本', value: 'japan' },
+  { label: '港澳台', value: 'hkMoTw' },
+  { label: '其他地区', value: 'other' },
+]
+
+const regionLabelMap: Record<string, string> = {
+  auto: '自动识别',
+  mainland: '中国大陆',
+  japan: '日本',
+  hkMoTw: '港澳台',
+  other: '其他地区',
+}
+
+const detectedRegion = ref('')
+const pickedHost = ref('')
+const statusLoading = ref(false)
+
+async function loadStatus() {
+  const st = await browser.storage.local.get(['uposRegionDetect', 'uposAutoPick'])
+  detectedRegion.value = (st.uposRegionDetect as { region?: string } | undefined)?.region ?? ''
+  pickedHost.value = (st.uposAutoPick as { host?: string } | undefined)?.host ?? ''
+}
+
+const detectedLabel = computed(() => regionLabelMap[detectedRegion.value] ?? '未检测')
+const pickedName = computed(() => {
+  const node = UPOS_NODES.find(n => n.host === pickedHost.value)
+  return node?.name ?? (pickedHost.value || '—')
+})
+const effectiveDesc = computed(() => {
+  const eff = settings.value.uposRegion && settings.value.uposRegion !== 'auto'
+    ? settings.value.uposRegion
+    : detectedRegion.value
+  if (eff === 'mainland')
+    return '走 B 站原生调度（大陆最快）'
+  if (!eff)
+    return '检测中…'
+  return `海外优选 → ${pickedName.value}`
+})
+
+async function redetect() {
+  statusLoading.value = true
+  await browser.storage.local.remove(['uposRegionDetect', 'uposAutoPick'])
+  detectedRegion.value = ''
+  pickedHost.value = ''
+  // 清缓存后切换开关，触发后台重新识别并应用（走一次 storage.onChanged）
+  settings.value.enableUposOptimization = false
+  await nextTick()
+  settings.value.enableUposOptimization = true
+  setTimeout(async () => {
+    await loadStatus()
+    statusLoading.value = false
+  }, 2200)
+}
+
+onMounted(() => {
+  if (settings.value.uposNode === AUTO_UPOS_NODE_ID)
+    loadStatus()
+})
+watch(() => settings.value.uposNode, (v) => {
+  if (v === AUTO_UPOS_NODE_ID)
+    loadStatus()
 })
 
 async function pingHost(host: string): Promise<number | null> {
@@ -138,6 +208,34 @@ async function testAllNodes() {
           v-model="settings.uposNode"
           :options="nodeOptions"
         />
+      </SettingsItem>
+
+      <SettingsItem
+        v-if="settings.uposNode === AUTO_UPOS_NODE_ID"
+        :title="t('settings.upos_region') || '使用地区'"
+        :desc="t('settings.upos_region_desc') || '默认自动识别当前 IP 所在地区，也可手动指定。大陆走 B 站原生调度，海外自动挑选最快加速镜像。'"
+        right-width="auto"
+      >
+        <Select
+          v-model="settings.uposRegion"
+          :options="regionOptions"
+        />
+      </SettingsItem>
+
+      <SettingsItem
+        v-if="settings.uposNode === AUTO_UPOS_NODE_ID"
+        :title="t('settings.upos_detect_status') || '当前网络检测'"
+        :desc="`识别地区：${detectedLabel} · 生效策略：${effectiveDesc}`"
+        right-width="auto"
+      >
+        <Button
+          type="secondary"
+          size="small"
+          :loading="statusLoading"
+          @click="redetect"
+        >
+          {{ statusLoading ? '检测中…' : '重新检测' }}
+        </Button>
       </SettingsItem>
 
       <SettingsItem
