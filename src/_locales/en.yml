@@ -90,7 +90,7 @@ layout_editor:
   original_moments_show_community_center: How to show the original Moments community center
   original_moments_show_hot_search: How to show the original Moments hot searches
   original_moments_show_up_list: How to show the original Moments uploader banner
-  switch_to_bewly_topbar: How to switch to the BewlyCat top bar
+  switch_to_bewly_topbar: How to switch to the IrisCat top bar
   switch_to_original_topbar: How to switch to the Bilibili top bar
 iframe_drawer:
   open_in_new_tab: Open in new tab
@@ -151,7 +151,7 @@ settings:
     located: Setting located
   category_general_desc: Configure language, interaction, link opening, and drawer behavior.
   category_appearance_desc: Configure frosted glass, theme colors, wallpaper, fonts, custom styles, and page style adaptation.
-  category_shortcuts_desc: Enable, customize, or restore BewlyCat and player shortcuts.
+  category_shortcuts_desc: Enable, customize, or restore IrisCat and player shortcuts.
   breadcrumb: Settings location
   group_interaction_layout: Interaction & Layout
   category_browsing_home_desc: Configure home recommendations, content filters, following, and home tabs.
@@ -167,12 +167,12 @@ settings:
   category_bilibili_comments_desc: Enhance user information and content displayed in comments.
   category_bilibili_vip_desc: Configure reminders related to premium membership benefits.
   category_advanced_compatibility_desc: Configure compatibility with original pages, third-party extensions, and other pages.
-  category_advanced_maintenance_desc: Export a backup, import settings, or restore BewlyCat defaults.
+  category_advanced_maintenance_desc: Export a backup, import settings, or restore IrisCat defaults.
   maintenance:
     title: Backup & Reset
     backup_title: Settings backup
     backup_desc: Export settings for backup or migration, or restore an existing backup.
-    import_desc: Import recognized settings from a BewlyCat JSON backup.
+    import_desc: Import recognized settings from a IrisCat JSON backup.
     import_failed: The settings file could not be read. Make sure it is a valid JSON backup.
     import_no_matches: No recognized settings were found in this backup.
     import_success: 'Import complete: applied {imported} settings and ignored {ignored} unknown settings.'
@@ -186,9 +186,9 @@ settings:
       This backup contains older settings. Confirm to convert them all during import:
       {items}
     reset_title: Restore default settings
-    reset_desc: Actions in this section affect all BewlyCat settings.
+    reset_desc: Actions in this section affect all IrisCat settings.
     reset_warning: This cannot be undone. Your current language will be preserved.
-  menu_plugin_components_and_pages: BewlyCat Interface
+  menu_plugin_components_and_pages: IrisCat Interface
   menu_bilibili_features_enhancement: Bilibili Features
   menu_appearance: Appearance
   menu_compatibility: Compatibility
@@ -260,8 +260,8 @@ settings:
   group_topbar: Top Bar
   topbar_logo_and_channels: Logo settings
   topbar_logo_and_channels_desc: Choose the top bar Logo style and whether to show the home button in touch mode.
-  topbar_switchers: BewlyCat/Bilibili page switcher
-  topbar_switchers_desc: Control the switcher between BewlyCat and original Bilibili pages.
+  topbar_switchers: IrisCat/Bilibili page switcher
+  topbar_switchers_desc: Control the switcher between IrisCat and original Bilibili pages.
   topbar_actions: Top bar actions
   topbar_actions_desc: Set the visibility, badges, and related reminders for each action icon.
   topbar_user_menu: Top bar user menu
@@ -303,13 +303,13 @@ settings:
   group_moments_interaction: Dynamic Card Interaction
   group_environment_info: Environment information
   copy_environment_info: Copy environment information
-  copy_environment_info_desc: Copy your browser, browser version, and BewlyCat version for bug reports.
+  copy_environment_info_desc: Copy your browser, browser version, and IrisCat version for bug reports.
   environment_info_copied: Environment information copied
   environment_info_copy_failed: Failed to copy environment information
   environment_info_unknown: Unknown
   environment_browser: Browser
   environment_browser_version: Browser version
-  environment_bewlycat_version: BewlyCat version
+  environment_bewlycat_version: IrisCat version
   xiaohongshu: REDnote
   group_settings_sync: Browser cloud sync
   group_version_reminder: Version reminders
@@ -389,8 +389,8 @@ settings:
   show_home_button_in_touch_mode_desc: When touch screen optimization is enabled, show a Home button next to the top bar Logo to navigate directly to the homepage.
   open_top_bar_items_in_bewly: Open Bewly pages from top bar icons
   open_top_bar_items_in_bewly_desc: When touch screen optimization is off, the Logo, Moments, Favorites, History, and Watch Later icons follow the top bar link opening behavior and open the corresponding Dock page using its Bewly/original Bilibili setting. Unsupported icons keep their existing behavior.
-  show_bewly_or_bili_page_switcher_desc: Show a switcher next to the homepage Logo to move between the BewlyCat and original Bilibili pages.
-  show_bewly_or_bili_page_switcher_on_more_pages_desc: Show the switcher on original Bilibili pages such as Moments, Search, Anime, Favorites, History, and Watch Later. Switching to BewlyCat opens the corresponding plugin page.
+  show_bewly_or_bili_page_switcher_desc: Show a switcher next to the homepage Logo to move between the IrisCat and original Bilibili pages.
+  show_bewly_or_bili_page_switcher_on_more_pages_desc: Show the switcher on original Bilibili pages such as Moments, Search, Anime, Favorites, History, and Watch Later. Switching to IrisCat opens the corresponding plugin page.
   hide_lv6_last_login_location_in_top_bar_user_pop: Hide LV6 last login info
   hide_lv6_last_login_location_in_top_bar_user_pop_desc: When enabled, the LV6 section in the top bar user popup will no longer show the last login time or location, and no login log request will be made. A full-level XP progress bar is shown instead.
   chk_box:
@@ -547,7 +547,7 @@ settings:
     exp_transparent: Shadow (experimental)
   show_top_bar_theme_color_gradient: Show theme color gradient in top bar (only works in dark mode)
   show_bewly_or_bili_page_switcher: Show BewlyBewly/Bilibili page switcher
-  show_bewly_or_bili_page_switcher_on_more_pages: Show BewlyCat/Bilibili page switcher on more pages
+  show_bewly_or_bili_page_switcher_on_more_pages: Show IrisCat/Bilibili page switcher on more pages
   filter_articles_in_moments: Filter articles
   filter_articles_in_moments_desc: Hide articles from the moments feed and only show videos
   top_bar_icon_badges: Icon badges
@@ -654,7 +654,7 @@ settings:
   theme_schedule: Light mode hours
   theme_schedule_desc: Use light mode during this time range and dark mode outside it.
   video_page_dark_mode: Video page dark mode only
-  video_page_dark_mode_desc: Keep the global theme unchanged and enable BewlyCat dark styles only on video playback pages.
+  video_page_dark_mode_desc: Keep the global theme unchanged and enable IrisCat dark styles only on video playback pages.
   theme_color: Theme color
   dark_mode_base_color: Dark mode base color
   gradient_theme_color_background: Use a gradient theme color as the background in dark mode
@@ -840,7 +840,7 @@ settings:
   fixed_home_tabs_on_home_page: Fix home tabs to the top
   topbar_visibility: BewlyBewly's top bar visibility
   topbar_visibility_desc: >-
-    When enabled, the BewlyCat or original Bilibili top bar is shown. When
+    When enabled, the IrisCat or original Bilibili top bar is shown. When
     disabled, both are hidden so Bilibili Evolved and other third-party top bars
     can take over.
   use_original_bilibili_homepage: Use the original Bilibili homepage
@@ -850,11 +850,11 @@ settings:
   use_original_bilibili_topbar: Use the original Bilibili top bar
   use_original_bilibili_topbar_desc: >-
     Only applies when top bar visibility is on. Enable it to use the original
-    Bilibili top bar; disable it to use the BewlyCat top bar.
+    Bilibili top bar; disable it to use the IrisCat top bar.
   top_bar_mode: Top bar type
   top_bar_mode_opt:
     original: Original top bar
-    bewly: BewlyCat top bar
+    bewly: IrisCat top bar
   adapt_to_other_page_styles: Adapt to other page styles
   adapt_to_other_page_styles_desc: Adapt to some common pages to match with the BewlyBewly theme.
   prevent_mobile_redirect: Prevent mobile redirect
@@ -875,7 +875,7 @@ settings:
 
     This operation cannot be reversed. Are you sure you want to reset your
     settings?
-  current_contributors: BewlyCat Contributors (including BewlyBewly)
+  current_contributors: IrisCat Contributors (including BewlyBewly)
   contributors_image_failed: Contributor image failed to load
   enable_settings_sync: Allow syncing settings
   enable_settings_sync_desc: >-
@@ -1074,7 +1074,7 @@ settings:
   enable_clean_share_link: Enable clean share link
   enable_clean_share_link_desc: >
     When enabled, the share link will be cleaned by removing tracking parameters and optionally including the video title.
-    This applies to BewlyCat's copy link feature and intercepts Bilibili's native share button.
+    This applies to IrisCat's copy link feature and intercepts Bilibili's native share button.
   clean_share_link_include_title: Include video title in shared link
   clean_share_link_include_title_desc: >
     When sharing, the video title will be added before the link, e.g. "Video Title https://www.bilibili.com/video/BVxxx"
@@ -1135,9 +1135,9 @@ settings:
 auth:
   auth_access_key_first: Before doing this, authorize BewlyBewly to use the access key.
 topbar:
-  top_bar_switcher: Bilibili/BewlyCat top bar switcher
+  top_bar_switcher: Bilibili/IrisCat top bar switcher
   switch_to_bilibili_top_bar: Switch to the Bilibili top bar
-  switch_to_bewly_top_bar: Switch to the BewlyCat top bar
+  switch_to_bewly_top_bar: Switch to the IrisCat top bar
   sign_in: Sign in
   notifications: Notifications
   moments: Moments
@@ -1438,7 +1438,7 @@ favorites:
   search_placeholder: Search for current favorites
 version_reminder:
   trigger: What's new
-  title: BewlyCat has been updated
+  title: IrisCat has been updated
   current_version: Current version v{version}
   description: View the release notes and latest updates for this version. After confirmation, this version will not be shown again.
   github_releases: GitHub Releases

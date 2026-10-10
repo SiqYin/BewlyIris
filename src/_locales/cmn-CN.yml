@@ -90,7 +90,7 @@ layout_editor:
   original_moments_show_community_center: 如何显示原版动态页社区中心
   original_moments_show_hot_search: 如何显示原版动态页热搜
   original_moments_show_up_list: 如何显示原版动态页 UP 横幅
-  switch_to_bewly_topbar: 如何切换到 BewlyCat 顶栏
+  switch_to_bewly_topbar: 如何切换到 IrisCat 顶栏
   switch_to_original_topbar: 如何切换到 Bilibili 顶栏
 iframe_drawer:
   open_in_new_tab: 在新标签页打开
@@ -151,7 +151,7 @@ settings:
     located: 已定位到此设置
   category_general_desc: 配置语言、交互布局、链接打开方式与抽屉行为。
   category_appearance_desc: 配置毛玻璃、主题颜色、壁纸、字体、自定义样式和其他页面的适配。
-  category_shortcuts_desc: 启用、修改或恢复 BewlyCat 与播放器快捷键。
+  category_shortcuts_desc: 启用、修改或恢复 IrisCat 与播放器快捷键。
   breadcrumb: 设置位置
   group_interaction_layout: 交互与布局
   category_browsing_home_desc: 配置首页推荐、内容过滤、关注页和首页标签。
@@ -167,12 +167,12 @@ settings:
   category_bilibili_comments_desc: 增强评论区的用户信息与内容显示。
   category_bilibili_vip_desc: 配置大会员权益相关的提醒功能。
   category_advanced_compatibility_desc: 配置原版页面、第三方扩展和其他页面的兼容行为。
-  category_advanced_maintenance_desc: 导出备份、导入设置或恢复 BewlyCat 默认配置。
+  category_advanced_maintenance_desc: 导出备份、导入设置或恢复 IrisCat 默认配置。
   maintenance:
     title: 备份与重置
     backup_title: 设置备份
     backup_desc: 导出设置用于备份或迁移，也可以从已有备份恢复。
-    import_desc: 从 BewlyCat JSON 备份中导入已识别的设置项。
+    import_desc: 从 IrisCat JSON 备份中导入已识别的设置项。
     import_failed: 设置文件无法读取，请确认它是有效的 JSON 备份。
     import_no_matches: 备份中没有可导入的设置项。
     import_success: 导入成功：已应用 {imported} 项，忽略 {ignored} 项未知设置。
@@ -186,9 +186,9 @@ settings:
       导入的备份包含以下旧版设置，确认后将一键转换并导入：
       {items}
     reset_title: 恢复默认设置
-    reset_desc: 此区域的操作会影响全部 BewlyCat 设置。
+    reset_desc: 此区域的操作会影响全部 IrisCat 设置。
     reset_warning: 恢复后无法撤销，当前语言设置会保留。
-  menu_plugin_components_and_pages: BewlyCat界面
+  menu_plugin_components_and_pages: IrisCat界面
   menu_bilibili_features_enhancement: Bilibili 功能
   menu_appearance: 外观
   menu_compatibility: 兼容性
@@ -260,8 +260,8 @@ settings:
   group_topbar: 顶栏
   topbar_logo_and_channels: Logo 设置
   topbar_logo_and_channels_desc: 设置顶栏 Logo 样式，以及触屏模式下是否显示首页按钮。
-  topbar_switchers: BewlyCat/Bilibili 页面切换器
-  topbar_switchers_desc: 控制 BewlyCat 与 Bilibili 原版页面切换器是否显示。
+  topbar_switchers: IrisCat/Bilibili 页面切换器
+  topbar_switchers_desc: 控制 IrisCat 与 Bilibili 原版页面切换器是否显示。
   topbar_actions: 顶栏功能图标
   topbar_actions_desc: 分别设置右侧功能图标的显示状态、角标和相关提醒。
   topbar_user_menu: 顶栏用户菜单
@@ -300,13 +300,13 @@ settings:
   group_moments_interaction: 动态卡片交互
   group_environment_info: 环境信息
   copy_environment_info: 复制环境信息
-  copy_environment_info_desc: 一次复制浏览器、浏览器版本和 BewlyCat 版本，方便提交问题。
+  copy_environment_info_desc: 一次复制浏览器、浏览器版本和 IrisCat 版本，方便提交问题。
   environment_info_copied: 环境信息已复制
   environment_info_copy_failed: 复制环境信息失败
   environment_info_unknown: 未知
   environment_browser: 浏览器
   environment_browser_version: 浏览器版本
-  environment_bewlycat_version: BewlyCat 版本
+  environment_bewlycat_version: IrisCat 版本
   xiaohongshu: 小红书
   group_settings_sync: 浏览器云同步
   group_version_reminder: 版本提醒
@@ -382,8 +382,8 @@ settings:
   show_home_button_in_touch_mode_desc: 在触屏优化开启时，在顶栏 Logo 旁边显示一个可以直接跳转到首页的按钮。
   open_top_bar_items_in_bewly: 点击顶栏图标打开 Bewly 页面
   open_top_bar_items_in_bewly_desc: 未启用触屏优化时，点击 Logo、动态、收藏、历史或稍后再看图标，将按照“顶栏链接打开行为”打开 Dock 中对应的页面，并沿用该页面的 Bewly/原版 Bilibili 配置；尚未适配的图标保持原有行为。
-  show_bewly_or_bili_page_switcher_desc: 在首页 Logo 旁显示切换器，用于在 BewlyCat 页面和 Bilibili 原版页面之间切换。
-  show_bewly_or_bili_page_switcher_on_more_pages_desc: 在动态、搜索、番剧、收藏、历史和稍后再看等 Bilibili 原版页面显示切换器；切换到 BewlyCat 时会打开对应的插件页面。
+  show_bewly_or_bili_page_switcher_desc: 在首页 Logo 旁显示切换器，用于在 IrisCat 页面和 Bilibili 原版页面之间切换。
+  show_bewly_or_bili_page_switcher_on_more_pages_desc: 在动态、搜索、番剧、收藏、历史和稍后再看等 Bilibili 原版页面显示切换器；切换到 IrisCat 时会打开对应的插件页面。
   hide_lv6_last_login_location_in_top_bar_user_pop: 隐藏 LV6 等级最后登录信息显示
   hide_lv6_last_login_location_in_top_bar_user_pop_desc: 开启后，顶栏头像弹窗中的 LV6 等级信息区域将不再显示最后登录时间和地点，也不会请求登录记录，改为显示满级经验进度。
   chk_box:
@@ -611,8 +611,8 @@ settings:
     exp_frosted_glass: 白雾（实验）
     exp_transparent: 阴影（实验）
   show_top_bar_theme_color_gradient: 在顶栏显示主题色渐变（仅在暗色模式下有效）
-  show_bewly_or_bili_page_switcher: 显示 BewlyCat/Bilibili 页面切换器
-  show_bewly_or_bili_page_switcher_on_more_pages: 在更多页面显示 BewlyCat/Bilibili 页面切换器
+  show_bewly_or_bili_page_switcher: 显示 IrisCat/Bilibili 页面切换器
+  show_bewly_or_bili_page_switcher_on_more_pages: 在更多页面显示 IrisCat/Bilibili 页面切换器
   filter_articles_in_moments: 过滤专栏
   filter_articles_in_moments_desc: 在动态列表中过滤掉专栏内容，仅显示视频
   enable_settings_sync: 启用设置同步
@@ -726,7 +726,7 @@ settings:
   theme_schedule: 亮色时间
   theme_schedule_desc: 在所选时间范围内使用亮色模式，其余时间使用暗色模式。
   video_page_dark_mode: 仅视频播放页深色模式
-  video_page_dark_mode_desc: 保持全站主题设置不变，仅在视频播放页启用 BewlyCat 深色样式。
+  video_page_dark_mode_desc: 保持全站主题设置不变，仅在视频播放页启用 IrisCat 深色样式。
   theme_color: 主题色
   dark_mode_base_color: 深色模式基准颜色
   gradient_theme_color_background: 在暗色模式下使用渐变主题颜色作为背景
@@ -751,7 +751,7 @@ settings:
   customize_css: 自定义 CSS
   customize_css_desc: |-
     如果你不熟悉 CSS，请不要修改 CSS。否则可能会导致意外的显示问题。
-    如果在你修改 CSS 后遇到任何问题，请重新安装 BewlyCat。
+    如果在你修改 CSS 后遇到任何问题，请重新安装 IrisCat。
   logo_color: Logo 颜色
   logo_color_opt:
     white: 白
@@ -791,7 +791,7 @@ settings:
   auto_switch_recommendation_mode: 自动切换推荐模式
   auto_switch_recommendation_mode_desc: |
     当 App 推荐失败时自动切换至 Web 模式。
-  authorize_app: 授权 BewlyCat 使用 access key
+  authorize_app: 授权 IrisCat 使用 access key
   authorize_app_desc: |
     授权使用后能在首页推送 bilibili App 端算法的推荐视频，授权 key 有效期约为一个月，过后记得重新授权获取 access key。
   authorize_app_more_info_access_key: 关于 access key
@@ -877,17 +877,17 @@ settings:
   always_show_tabs_on_home_page: 滚动隐藏首页标签栏
   fixed_home_tabs_on_home_page: 固定首页标签栏
   topbar_visibility: 顶栏可见性
-  topbar_visibility_desc: 开启后显示 BewlyCat 或 B 站原版顶栏；关闭后隐藏两者，交给 Bilibili Evolved 等第三方顶栏。
+  topbar_visibility_desc: 开启后显示 IrisCat 或 B 站原版顶栏；关闭后隐藏两者，交给 Bilibili Evolved 等第三方顶栏。
   use_original_bilibili_homepage: 使用原版 Bilibili 首页
   use_original_bilibili_homepage_desc: 在您更改此设置后，如果在首页上，页面将自动刷新！
   use_original_bilibili_topbar: 使用原版 Bilibili 顶栏
-  use_original_bilibili_topbar_desc: 仅在「顶栏可见性」开启时生效。开启后使用 B 站原版顶栏，关闭后使用 BewlyCat 顶栏。
+  use_original_bilibili_topbar_desc: 仅在「顶栏可见性」开启时生效。开启后使用 B 站原版顶栏，关闭后使用 IrisCat 顶栏。
   top_bar_mode: 顶栏类型
   top_bar_mode_opt:
     original: 原版顶栏
-    bewly: BewlyCat 顶栏
+    bewly: IrisCat 顶栏
   adapt_to_other_page_styles: 适应其他页面样式
-  adapt_to_other_page_styles_desc: 适应一些常见页面，以与 BewlyCat 主题相匹配。
+  adapt_to_other_page_styles_desc: 适应一些常见页面，以与 IrisCat 主题相匹配。
   prevent_mobile_redirect: 防止跳转移动端
   prevent_mobile_redirect_desc: 开启后，仅在访问 www.bilibili.com 时使用桌面端 UA，避免被跳转到 m.bilibili.com；直接访问移动端不受影响。
   follow_bilibili_evolved_color: 使用 Bilibili Evolved 主题色
@@ -900,7 +900,7 @@ settings:
   reset_settings_confirm: |-
     重置设置？
     该操作无法撤销。你确定要重置你的设置吗？
-  current_contributors: BewlyCat（含 BewlyBewly）贡献者
+  current_contributors: IrisCat（含 BewlyBewly）贡献者
   contributors_image_failed: 贡献者图片加载失败
   disable_auto_play_collection: 自动关闭合集自动播放
   disable_auto_play_collection_desc: 自动关闭视频合集的自动播放功能
@@ -1011,7 +1011,7 @@ settings:
   enable_clean_share_link: 启用分享链接净化
   enable_clean_share_link_desc: >
     启用后，分享链接将自动移除追踪参数，并可选择是否包含视频标题。
-    此功能适用于 BewlyCat 的复制链接功能，同时也会拦截 Bilibili 原生分享按钮的复制内容。
+    此功能适用于 IrisCat 的复制链接功能，同时也会拦截 Bilibili 原生分享按钮的复制内容。
   clean_share_link_include_title: 分享时包含视频标题
   clean_share_link_include_title_desc: >
     分享时在链接前添加视频标题，例如 "视频标题 https://www.bilibili.com/video/BVxxx"
@@ -1049,11 +1049,11 @@ settings:
   group_fonts: 字体
   group_visual_effects: 视觉效果
 auth:
-  auth_access_key_first: 在这之前请先授权 BewlyCat 使用 access key
+  auth_access_key_first: 在这之前请先授权 IrisCat 使用 access key
 topbar:
-  top_bar_switcher: Bilibili/BewlyCat 顶栏切换器
+  top_bar_switcher: Bilibili/IrisCat 顶栏切换器
   switch_to_bilibili_top_bar: 切换到 Bilibili 顶栏
-  switch_to_bewly_top_bar: 切换到 BewlyCat 顶栏
+  switch_to_bewly_top_bar: 切换到 IrisCat 顶栏
   sign_in: 登录
   notifications: 通知
   moments: 动态
@@ -1351,7 +1351,7 @@ favorites:
   unfav_seasons_failed: '{count} 个合集取消收藏失败'
 version_reminder:
   trigger: 新版本说明
-  title: BewlyCat 已更新
+  title: IrisCat 已更新
   current_version: 当前版本 v{version}
   description: 查看本版本的更新记录与最新动态。确认后，本版本将不再显示提醒。
   github_releases: GitHub Releases

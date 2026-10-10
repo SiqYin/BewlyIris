@@ -1,12 +1,12 @@
 {
-  "name": "bewly-cat",
-  "displayName": "BewlyCat",
+  "name": "iris-cat",
+  "displayName": "IrisCat",
   "type": "module",
-  "version": "1.8.0",
+  "version": "0.1.1",
   "private": true,
   "packageManager": "pnpm@11.17.0",
-  "description": "Just make a few small changes to your Bilibili homepage.",
-  "homepage": "https://github.com/keleus/BewlyCat",
+  "description": "Just make a few small changes to your Bilibili homepage. (Fork of BewlyCat with PiliBabel overseas CDN acceleration)",
+  "homepage": "https://github.com/SiqYin/IrisCat",
   "scripts": {
     "build-pack": "pnpm build && pnpm build-firefox && pnpm pack:zip && pnpm pack:zip-firefox && pnpm pack:zip-firefox-sources",
     "dev": "pnpm run clear && cross-env NODE_ENV=development run-p --npm-path pnpm dev:*",

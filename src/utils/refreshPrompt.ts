@@ -63,13 +63,13 @@ function getBaseRefreshPromptCopy(locale: string, currentVersion: string): Refre
       currentVersion,
       refreshAllMessage: REFRESH_ALL_CONTENT_SCRIPT_TABS,
       refreshAll: '重新整理全部頁面',
-      refreshAllHint: '重新整理所有視窗中 BewlyCat 支援的 B 站頁面',
+      refreshAllHint: '重新整理所有視窗中 IrisCat 支援的 B 站頁面',
       refreshingAll: '正在重新整理…',
       refresh: '立即重新整理',
       later: '稍後',
-      missingTitle: 'BewlyCat 需要重新整理頁面',
+      missingTitle: 'IrisCat 需要重新整理頁面',
       missingDescription: '擴充功能已重新載入。重新整理頁面以恢復完整樣式與功能。',
-      updatedTitle: 'BewlyCat 已更新',
+      updatedTitle: 'IrisCat 已更新',
       updatedDescription: '目前頁面仍在執行舊版本。重新整理後套用 v{version}。',
     }
   }
@@ -79,13 +79,13 @@ function getBaseRefreshPromptCopy(locale: string, currentVersion: string): Refre
       currentVersion,
       refreshAllMessage: REFRESH_ALL_CONTENT_SCRIPT_TABS,
       refreshAll: '刷新全部页面',
-      refreshAllHint: '刷新所有窗口中 BewlyCat 支持的 B 站页面',
+      refreshAllHint: '刷新所有窗口中 IrisCat 支持的 B 站页面',
       refreshingAll: '正在刷新…',
       refresh: '立即刷新',
       later: '稍后',
-      missingTitle: 'BewlyCat 需要刷新页面',
+      missingTitle: 'IrisCat 需要刷新页面',
       missingDescription: '扩展已重新加载。刷新页面以恢复完整样式和功能。',
-      updatedTitle: 'BewlyCat 已更新',
+      updatedTitle: 'IrisCat 已更新',
       updatedDescription: '当前页面仍在运行旧版本。刷新后应用 v{version}。',
     }
   }
@@ -95,13 +95,13 @@ function getBaseRefreshPromptCopy(locale: string, currentVersion: string): Refre
       currentVersion,
       refreshAllMessage: REFRESH_ALL_CONTENT_SCRIPT_TABS,
       refreshAll: 'すべて再読み込み',
-      refreshAllHint: 'すべてのウィンドウで BewlyCat が対応する Bilibili ページを再読み込み',
+      refreshAllHint: 'すべてのウィンドウで IrisCat が対応する Bilibili ページを再読み込み',
       refreshingAll: '再読み込み中…',
       refresh: '今すぐ再読み込み',
       later: '後で',
-      missingTitle: 'BewlyCat の再読み込みが必要です',
+      missingTitle: 'IrisCat の再読み込みが必要です',
       missingDescription: '拡張機能が再読み込みされました。ページを再読み込みして、スタイルと機能を復元してください。',
-      updatedTitle: 'BewlyCat が更新されました',
+      updatedTitle: 'IrisCat が更新されました',
       updatedDescription: 'このページでは古いバージョンが実行されています。再読み込みして v{version} を適用してください。',
     }
   }
@@ -111,13 +111,13 @@ function getBaseRefreshPromptCopy(locale: string, currentVersion: string): Refre
       currentVersion,
       refreshAllMessage: REFRESH_ALL_CONTENT_SCRIPT_TABS,
       refreshAll: '모든 페이지 새로고침',
-      refreshAllHint: '모든 창에서 BewlyCat이 지원하는 Bilibili 페이지 새로고침',
+      refreshAllHint: '모든 창에서 IrisCat이 지원하는 Bilibili 페이지 새로고침',
       refreshingAll: '새로고침 중…',
       refresh: '지금 새로고침',
       later: '나중에',
-      missingTitle: 'BewlyCat 페이지 새로고침 필요',
+      missingTitle: 'IrisCat 페이지 새로고침 필요',
       missingDescription: '확장 프로그램이 다시 로드되었습니다. 전체 스타일과 기능을 복원하려면 페이지를 새로고침하세요.',
-      updatedTitle: 'BewlyCat 업데이트됨',
+      updatedTitle: 'IrisCat 업데이트됨',
       updatedDescription: '이 페이지는 이전 버전을 실행 중입니다. 새로고침하여 v{version}을 적용하세요.',
     }
   }
@@ -126,13 +126,13 @@ function getBaseRefreshPromptCopy(locale: string, currentVersion: string): Refre
     currentVersion,
     refreshAllMessage: REFRESH_ALL_CONTENT_SCRIPT_TABS,
     refreshAll: 'Refresh all pages',
-    refreshAllHint: 'Refresh Bilibili pages supported by BewlyCat in all windows',
+    refreshAllHint: 'Refresh Bilibili pages supported by IrisCat in all windows',
     refreshingAll: 'Refreshing…',
     refresh: 'Refresh now',
     later: 'Later',
-    missingTitle: 'BewlyCat needs a page refresh',
+    missingTitle: 'IrisCat needs a page refresh',
     missingDescription: 'The extension was reloaded. Refresh this page to restore all styles and features.',
-    updatedTitle: 'BewlyCat was updated',
+    updatedTitle: 'IrisCat was updated',
     updatedDescription: 'This page is still running an older version. Refresh to apply v{version}.',
   }
 }
@@ -157,30 +157,30 @@ interface RefreshReasonCopy {
 
 const refreshReasonCopies: Record<string, RefreshReasonCopy> = {
   'zh-CN': {
-    title: 'BewlyCat 连接需要恢复',
+    title: 'IrisCat 连接需要恢复',
     details: '查看原因与诊断详情',
     labels: { reason: '检测结果', pageVersion: '页面版本', extensionVersion: '当前版本', attempts: '检测次数', failure: '检测问题', copy: '复制诊断信息', copied: '已复制，可粘贴到反馈中', copyFailed: '复制失败，请重试' },
     failures: { timeout: '等待页面回应超时', 'receiver-missing': '未能建立连接', 'invalid-response': '收到的回应无法识别', 'message-error': '发送或接收消息时出错' },
     recurring: '刷新后仍有异常：请检查扩展的站点访问权限；若装有正式版和开发版，请只启用一份；也可在扩展管理页重新启用扩展后重试。',
     reasons: {
-      'extension-reloaded': 'BewlyCat 已重新加载，当前页面与扩展的旧连接已失效。请刷新页面恢复功能。',
-      'version-mismatch': '当前页面使用的 BewlyCat 版本与已安装版本不同，刷新后加载当前版本。',
-      'identity-mismatch': '当前页面中的 BewlyCat 与正在运行的扩展不匹配。请刷新页面；如果同时启用了多个版本，请只保留一个。',
-      'legacy-content-script': '当前页面使用的 BewlyCat 通信方式较旧，无法确认版本，请刷新页面。',
-      'content-script-unreachable': '多次尝试仍无法连接本页的 BewlyCat，可能尚未启动或加载失败，请刷新重试。',
-      'content-script-check-failed': '本页的 BewlyCat 多次检查未正常回应，可能是页面忙碌或运行异常，请稍后重试或刷新。',
-      'context-invalidated': '当前页面与 BewlyCat 的连接已失效，可能发生在扩展更新、重新加载或重新启用之后，请刷新恢复连接。',
-      'background-unreachable': '多次尝试仍无法连接 BewlyCat 后台，原因暂不明确。请稍后重试；持续出现时，请检查扩展是否正常启用。',
+      'extension-reloaded': 'IrisCat 已重新加载，当前页面与扩展的旧连接已失效。请刷新页面恢复功能。',
+      'version-mismatch': '当前页面使用的 IrisCat 版本与已安装版本不同，刷新后加载当前版本。',
+      'identity-mismatch': '当前页面中的 IrisCat 与正在运行的扩展不匹配。请刷新页面；如果同时启用了多个版本，请只保留一个。',
+      'legacy-content-script': '当前页面使用的 IrisCat 通信方式较旧，无法确认版本，请刷新页面。',
+      'content-script-unreachable': '多次尝试仍无法连接本页的 IrisCat，可能尚未启动或加载失败，请刷新重试。',
+      'content-script-check-failed': '本页的 IrisCat 多次检查未正常回应，可能是页面忙碌或运行异常，请稍后重试或刷新。',
+      'context-invalidated': '当前页面与 IrisCat 的连接已失效，可能发生在扩展更新、重新加载或重新启用之后，请刷新恢复连接。',
+      'background-unreachable': '多次尝试仍无法连接 IrisCat 后台，原因暂不明确。请稍后重试；持续出现时，请检查扩展是否正常启用。',
     },
   },
   'zh-TW': {
-    title: 'BewlyCat 連線需要恢復',
+    title: 'IrisCat 連線需要恢復',
     details: '查看原因與診斷詳情',
     labels: { reason: '偵測結果', pageVersion: '頁面中的版本', extensionVersion: '目前擴充功能版本', attempts: '已嘗試偵測次數', failure: '偵測時遇到的問題', copy: '複製診斷資訊', copied: '已複製，可貼到回報中', copyFailed: '複製失敗，請重試' },
     failures: { timeout: '等待頁面回應逾時', 'receiver-missing': '未能建立連線', 'invalid-response': '收到的回應無法辨識', 'message-error': '傳送或接收訊息時發生錯誤' },
     recurring: '重新整理後仍有異常：請檢查擴充功能的網站存取權限；若安裝了正式版和開發版，請只啟用一份；也可在擴充功能管理頁重新啟用後重試。',
     reasons: {
-      'extension-reloaded': 'BewlyCat 已重新載入，目前頁面與擴充功能的舊連線已失效。請重新整理頁面以恢復功能。',
+      'extension-reloaded': 'IrisCat 已重新載入，目前頁面與擴充功能的舊連線已失效。請重新整理頁面以恢復功能。',
       'version-mismatch': '頁面腳本與已安裝擴充功能的版本不一致。請重新整理；若仍提示，請重新安裝完整的擴充功能套件。',
       'identity-mismatch': '頁面腳本與目前擴充功能的安裝身分不一致。重新整理後仍出現時，請檢查是否同時啟用了開發版或另一份安裝。',
       'legacy-content-script': '頁面使用舊的通訊協定，無法確認腳本版本。請重新整理以載入目前腳本。',
@@ -191,13 +191,13 @@ const refreshReasonCopies: Record<string, RefreshReasonCopy> = {
     },
   },
   en: {
-    title: 'BewlyCat connection needs recovery',
+    title: 'IrisCat connection needs recovery',
     details: 'View reason and diagnostic details',
     labels: { reason: 'What we found', pageVersion: 'Version on this page', extensionVersion: 'Current extension version', attempts: 'Checks attempted', failure: 'Problem during the check', copy: 'Copy diagnostic info', copied: 'Copied — paste into your report', copyFailed: 'Copy failed. Try again' },
     failures: { timeout: 'The page took too long to respond', 'receiver-missing': 'Could not establish a connection', 'invalid-response': 'The response could not be understood', 'message-error': 'An error occurred while sending or receiving a message' },
     recurring: 'Still failing after a refresh: check extension site access, enable only one copy if both release and development editions are installed, or re-enable the extension and try again.',
     reasons: {
-      'extension-reloaded': 'BewlyCat was reloaded, so this page’s previous connection to the extension is no longer available. Refresh the page to restore its features.',
+      'extension-reloaded': 'IrisCat was reloaded, so this page’s previous connection to the extension is no longer available. Refresh the page to restore its features.',
       'version-mismatch': 'The page script and installed extension have different versions. Refresh to load the current version. If this persists, reinstall the complete extension package.',
       'identity-mismatch': 'The page script and extension have different installation identities. If refreshing does not help, check for another enabled copy or development edition.',
       'legacy-content-script': 'The page uses an older communication protocol, so its script version cannot be verified. Refresh to load the current script.',
@@ -208,13 +208,13 @@ const refreshReasonCopies: Record<string, RefreshReasonCopy> = {
     },
   },
   ja: {
-    title: 'BewlyCat の接続を復旧してください',
+    title: 'IrisCat の接続を復旧してください',
     details: '原因と診断情報を表示',
     labels: { reason: '確認結果', pageVersion: 'ページのバージョン', extensionVersion: '現在の拡張機能バージョン', attempts: '確認回数', failure: '確認中の問題', copy: '診断情報をコピー', copied: 'コピーしました。報告に貼り付けてください', copyFailed: 'コピーに失敗しました。再試行してください' },
     failures: { timeout: 'ページの応答がタイムアウトしました', 'receiver-missing': '接続できませんでした', 'invalid-response': '応答を認識できませんでした', 'message-error': 'メッセージの送受信中にエラーが発生しました' },
     recurring: '再読み込み後も発生する場合は、サイトへのアクセス権限を確認し、正式版と開発版を同時に有効にせず、拡張機能を有効にし直してください。',
     reasons: {
-      'extension-reloaded': 'BewlyCat が再読み込みされ、このページと拡張機能の以前の接続が失効しました。ページを再読み込みして機能を復旧してください。',
+      'extension-reloaded': 'IrisCat が再読み込みされ、このページと拡張機能の以前の接続が失効しました。ページを再読み込みして機能を復旧してください。',
       'version-mismatch': 'ページのスクリプトと拡張機能のバージョンが異なります。再読み込み後も続く場合は、完全なパッケージを再インストールしてください。',
       'identity-mismatch': 'ページのスクリプトと拡張機能のインストール識別情報が異なります。再読み込み後も続く場合は、開発版など別のコピーが有効になっていないか確認してください。',
       'legacy-content-script': 'ページが古い通信方式を使用しているため、バージョンを確認できません。ページを再読み込みしてください。',
@@ -225,13 +225,13 @@ const refreshReasonCopies: Record<string, RefreshReasonCopy> = {
     },
   },
   ko: {
-    title: 'BewlyCat 연결 복구 필요',
+    title: 'IrisCat 연결 복구 필요',
     details: '원인 및 진단 정보 보기',
     labels: { reason: '확인 결과', pageVersion: '페이지의 버전', extensionVersion: '현재 확장 기능 버전', attempts: '확인 시도 횟수', failure: '확인 중 발생한 문제', copy: '진단 정보 복사', copied: '복사됨. 피드백에 붙여넣으세요', copyFailed: '복사 실패. 다시 시도하세요' },
     failures: { timeout: '페이지 응답 대기 시간이 초과되었습니다', 'receiver-missing': '연결할 수 없습니다', 'invalid-response': '응답을 인식할 수 없습니다', 'message-error': '메시지를 보내거나 받는 중 오류가 발생했습니다' },
     recurring: '새로고침 후에도 계속되면 사이트 접근 권한을 확인하고, 정식 버전과 개발 버전 중 하나만 활성화하거나 확장 기능을 다시 활성화해 보세요.',
     reasons: {
-      'extension-reloaded': 'BewlyCat이 다시 로드되어 이 페이지와 확장 기능의 이전 연결이 끊어졌습니다. 기능을 복구하려면 페이지를 새로고침하세요.',
+      'extension-reloaded': 'IrisCat이 다시 로드되어 이 페이지와 확장 기능의 이전 연결이 끊어졌습니다. 기능을 복구하려면 페이지를 새로고침하세요.',
       'version-mismatch': '페이지 스크립트와 설치된 확장 기능의 버전이 다릅니다. 새로고침 후에도 계속되면 전체 패키지를 다시 설치하세요.',
       'identity-mismatch': '페이지 스크립트와 확장 기능의 설치 정보가 다릅니다. 새로고침 후에도 계속되면 다른 사본이나 개발 버전이 함께 활성화되어 있는지 확인하세요.',
       'legacy-content-script': '페이지가 이전 통신 방식을 사용하여 스크립트 버전을 확인할 수 없습니다. 페이지를 새로고침하세요.',
@@ -372,10 +372,10 @@ export function showRefreshPrompt(...args: unknown[]): void {
         if (typeof result?.failed !== 'number')
           throw new Error('Invalid refresh response')
         if (result.failed > 0)
-          console.warn('[BewlyCat] Some pages could not be refreshed.', result.failed)
+          console.warn('[IrisCat] Some pages could not be refreshed.', result.failed)
       }
       catch (error) {
-        console.warn('[BewlyCat] Failed to refresh all pages.', error)
+        console.warn('[IrisCat] Failed to refresh all pages.', error)
       }
       finally {
         button.disabled = false
@@ -924,7 +924,7 @@ export function promptPageRefreshFromContentScript(reason: ContentScriptRefreshR
       showRefreshPrompt(copy)
     }
     catch (error) {
-      console.warn('[BewlyCat] Failed to show the refresh prompt.', error)
+      console.warn('[IrisCat] Failed to show the refresh prompt.', error)
     }
     finally {
       pendingRefreshPrompt = null

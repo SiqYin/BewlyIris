@@ -142,7 +142,7 @@ function handleSyncDialogClose() {
 }
 
 async function checkGitHubRelease() {
-  const apiUrl = `https://api.github.com/repos/keleus/BewlyCat/releases/latest`
+  const apiUrl = `https://api.github.com/repos/SiqYin/IrisCat/releases/latest`
 
   try {
     const response = await fetch(apiUrl)
@@ -165,7 +165,7 @@ async function checkGitHubRelease() {
 function handleContributorImageError() {
   if (!contributorsImageUsingCloud.value) {
     contributorsImageUsingCloud.value = true
-    contributorsImageSrc.value = 'https://contrib.rocks/image?repo=keleus/BewlyCat'
+    contributorsImageSrc.value = 'https://contrib.rocks/image?repo=SiqYin/IrisCat'
     return
   }
 
@@ -207,7 +207,7 @@ async function handleCopyEnvironmentInfo() {
 
         <a
           v-if="hasNewVersion"
-          href="https://github.com/keleus/BewlyCat/releases" target="_blank"
+          href="https://github.com/SiqYin/IrisCat/releases" target="_blank"
           pos="absolute bottom-0 right-0" transform="translate-x-50%" un-text="xs $bew-text-1" p="y-1 x-2" bg="$bew-fill-1"
           rounded="$bew-radius"
         >
@@ -216,7 +216,7 @@ async function handleCopyEnvironmentInfo() {
       </div>
       <section class="about-brand" text-center mt-2>
         <p flex="inline gap-2">
-          <span>BewlyCat</span>
+          <span>IrisCat</span>
           <span
             v-if="isDev"
             class="bew-warning-text"
@@ -227,7 +227,7 @@ async function handleCopyEnvironmentInfo() {
         </p>
         <p text-center>
           <a
-            href="https://github.com/keleus/BewlyCat/releases" target="_blank"
+            href="https://github.com/SiqYin/IrisCat/releases" target="_blank"
             un-text="sm color-$bew-text-2 hover:color-$bew-text-3"
           >
             v{{ version }}
@@ -299,7 +299,7 @@ async function handleCopyEnvironmentInfo() {
           </h3>
           <div grid="~ xl:cols-6 lg:cols-5 md:cols-4 cols-3 gap-2">
             <a
-              href="https://github.com/keleus/BewlyCat" target="_blank"
+              href="https://github.com/SiqYin/IrisCat" target="_blank"
               class="link-card"
               bg="black dark:white !opacity-10 !hover:opacity-20"
               un-text="black dark:white"
@@ -333,7 +333,7 @@ async function handleCopyEnvironmentInfo() {
           </p>
           <a
             v-else
-            href="https://github.com/keleus/BewlyCat/graphs/contributors"
+            href="https://github.com/SiqYin/IrisCat/graphs/contributors"
             target="_blank"
             class="contributors-image-link"
           >
