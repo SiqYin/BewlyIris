@@ -131,8 +131,8 @@ settings:
   following_sort_group: By group
   title: Settings
   menu_general: General
-  menu_bewly_pages: Bewly Pages
-  menu_bewly_components: Bewly Components
+  menu_bewly_pages: IrisCat Pages
+  menu_bewly_components: IrisCat Components
   menu_bilibili: Bilibili
   menu_navigation: Pages & Components
   menu_playback: Playback & Audio
@@ -296,7 +296,7 @@ settings:
   group_home_tabs: Home Tabs
   group_home_layout: Home Layout
   group_original_moments_page: Bilibili Page
-  group_new_moments_page: Bewly Dynamic Feed
+  group_new_moments_page: IrisCat Dynamic Feed
   group_new_moments_page_desc: This page is not final and may change significantly in future updates.
   group_moments_filters: Dynamic Filters
   group_moments_sidebar: Dynamic Feed Sidebar
@@ -327,16 +327,16 @@ settings:
   moments_show_up_list: Show frequently visited uploaders
   moments_visible_components: Visible components
   moments_visible_components_original_desc: Control whether sidebar and banner components appear on the original Bilibili moments page. Theme-colored means shown; gray means hidden.
-  moments_visible_components_plugin_desc: Control whether sidebar and top components appear on the Bewly moments page. Theme-colored means shown; gray means hidden.
+  moments_visible_components_plugin_desc: Control whether sidebar and top components appear on the IrisCat moments page. Theme-colored means shown; gray means hidden.
   moments_filtered_types: Filter dynamics
-  moments_filtered_types_desc: Control which dynamic types appear in the Bewly feed. Selected (theme-colored) means not filtered; unselected means filtered out. With filters enabled, each load scans at most 100 items; when the retention rate is below 60%, further loads are manual, while rates of 60% or higher continue loading on scroll.
+  moments_filtered_types_desc: Control which dynamic types appear in the IrisCat feed. Selected (theme-colored) means not filtered; unselected means filtered out. With filters enabled, each load scans at most 100 items; when the retention rate is below 60%, further loads are manual, while rates of 60% or higher continue loading on scroll.
   moments_enable_live_preview: Preview live dynamics on hover
   moments_enable_live_preview_desc: Play a live preview when hovering over a live dynamic cover.
   moments_enable_video_preview: Preview video dynamics on hover
   moments_enable_video_preview_desc: Preview video dynamics and forwarded videos on hover, with configurable trigger area, delay, and playback interactions.
   moments_grid_columns: Dynamic columns
   moments_tabs_position: Dynamic tabs position
-  moments_grid_columns_desc: Set the preferred column count for the Bewly dynamic feed. Card dimensions adapt to the selected layout; columns automatically reduce when space is limited, while the sidebar and feed remain centered as a group.
+  moments_grid_columns_desc: Set the preferred column count for the IrisCat dynamic feed. Card dimensions adapt to the selected layout; columns automatically reduce when space is limited, while the sidebar and feed remain centered as a group.
   moments_grid_columns_option: '{count} columns'
   moments_filter_up_recommendation: Filter uploader recommendations
   moments_filter_up_recommendation_desc: Filter out every dynamic that contains an uploader recommendation attachment.
@@ -387,8 +387,8 @@ settings:
     from either player edge to adjust volume.
   show_home_button_in_touch_mode: Show Home button
   show_home_button_in_touch_mode_desc: When touch screen optimization is enabled, show a Home button next to the top bar Logo to navigate directly to the homepage.
-  open_top_bar_items_in_bewly: Open Bewly pages from top bar icons
-  open_top_bar_items_in_bewly_desc: When touch screen optimization is off, the Logo, Moments, Favorites, History, and Watch Later icons follow the top bar link opening behavior and open the corresponding Dock page using its Bewly/original Bilibili setting. Unsupported icons keep their existing behavior.
+  open_top_bar_items_in_bewly: Open IrisCat pages from top bar icons
+  open_top_bar_items_in_bewly_desc: When touch screen optimization is off, the Logo, Moments, Favorites, History, and Watch Later icons follow the top bar link opening behavior and open the corresponding Dock page using its IrisCat/original Bilibili setting. Unsupported icons keep their existing behavior.
   show_bewly_or_bili_page_switcher_desc: Show a switcher next to the homepage Logo to move between the IrisCat and original Bilibili pages.
   show_bewly_or_bili_page_switcher_on_more_pages_desc: Show the switcher on original Bilibili pages such as Moments, Search, Anime, Favorites, History, and Watch Later. Switching to IrisCat opens the corresponding plugin page.
   hide_lv6_last_login_location_in_top_bar_user_pop: Hide LV6 last login info
@@ -474,9 +474,9 @@ settings:
     default: Default
     web_fullscreen: Web Fullscreen
     widescreen: Widescreen
-    bewly_widescreen: Bewly Widescreen
-    exit_bewly_widescreen: Exit Bewly Widescreen
-    switching_to_bewly_widescreen: Switching to Bewly Widescreen. Please wait…
+    bewly_widescreen: IrisCat Widescreen
+    exit_bewly_widescreen: Exit IrisCat Widescreen
+    switching_to_bewly_widescreen: Switching to IrisCat Widescreen. Please wait…
     enable_overrides: Enable Context Overrides
     enable_overrides_desc: Display mode settings for individual playback contexts only apply when enabled.
     overrides: Context Display Modes
@@ -488,11 +488,11 @@ settings:
     context_playlist: Favorites / Playlists
     context_moments_dialog: Moments Video Dialog
     context_moments_dialog_desc: Applies only to videos played in the Moments dialog and takes priority over other contexts; “Inherit Default” falls back to the video's own context.
-    bewly_widescreen_sidebar_position: Bewly Widescreen Sidebar Position
-    bewly_widescreen_sidebar_position_desc: Choose the sidebar position in Bewly Widescreen mode
+    bewly_widescreen_sidebar_position: IrisCat Widescreen Sidebar Position
+    bewly_widescreen_sidebar_position_desc: Choose the sidebar position in IrisCat Widescreen mode
     bewly_widescreen_sidebar_position_left: Left
     bewly_widescreen_sidebar_position_right: Right
-    bewly_widescreen_auto_collapse_sidebar: Auto-collapse Bewly Widescreen sidebar
+    bewly_widescreen_auto_collapse_sidebar: Auto-collapse IrisCat Widescreen sidebar
     bewly_widescreen_auto_collapse_sidebar_desc: >-
       Enabling this turns off manual sidebar resizing.
       Keep the video at full height and adapt the sidebar to the available space.
@@ -506,7 +506,7 @@ settings:
       sidebar width or expansion state.
     bewly_widescreen_video_alignment_sidebar: Area outside sidebar (default)
     bewly_widescreen_video_alignment_viewport: Whole browser viewport (when space permits)
-    enable_bewly_widescreen_sidebar_resize: Allow manual Bewly Widescreen sidebar resizing
+    enable_bewly_widescreen_sidebar_resize: Allow manual IrisCat Widescreen sidebar resizing
     enable_bewly_widescreen_sidebar_resize_desc: Enabling this turns off auto-collapse and keeps the sidebar fully expanded. Drag the divider between the video and sidebar to resize it and remember the last width; double-click the divider to restore the default width.
   enable_video_preview: Enable video preview feature (if possible)
   enable_video_ctrl_bar_on_video_card: Display the video control bar on the video card
@@ -534,7 +534,7 @@ settings:
   video_page_top_bar_config_opt:
     alwaysShow: Always show
     alwaysHide: Always hide
-    showOnMouse: On hover (Bewly only)
+    showOnMouse: On hover (IrisCat only)
     showOnScroll: On scroll
   top_bar_style: Top bar style
   top_bar_style_desc: Choose the top bar background.
@@ -778,7 +778,7 @@ settings:
     remove_pinned_title: Unpin
     remove_wanted_title: Remove from Wanted
     pinned_empty: No uploaders pinned. Pinned uploaders appear on the right of the dynamic feed.
-    wanted_empty: No uploaders added. Add one to filter by Wanted on the Bewly dynamic feed.
+    wanted_empty: No uploaders added. Add one to filter by Wanted on the IrisCat dynamic feed.
   authorization_success: Authorization successful
   filter_by_title: Filter by title
   filter_by_title_desc: >-
@@ -1014,8 +1014,8 @@ settings:
     web_fullscreen_desc: Toggle web fullscreen mode
     widescreen: Widescreen
     widescreen_desc: Toggle widescreen mode
-    bewly_widescreen: Bewly Widescreen
-    bewly_widescreen_desc: Toggle Bewly Widescreen mode
+    bewly_widescreen: IrisCat Widescreen
+    bewly_widescreen_desc: Toggle IrisCat Widescreen mode
     short_step_backward: Quick Rewind
     short_step_backward_desc: Rewind 5 seconds
     long_step_backward: Long Rewind
@@ -1121,8 +1121,8 @@ settings:
   external_watch_later_button_desc: Show a standalone Watch later button in the video toolbar. It displays the current state and can add or remove the video.
   show_vertical_video_zoom_button: Vertical video zoom button
   show_vertical_video_zoom_button_desc: Show zoom controls and the visible-area position control for vertical videos
-  show_bewly_widescreen_button: Show player Bewly Widescreen button
-  show_bewly_widescreen_button_desc: Show the Bewly Widescreen button in the video player controls.
+  show_bewly_widescreen_button: Show player IrisCat Widescreen button
+  show_bewly_widescreen_button_desc: Show the IrisCat Widescreen button in the video player controls.
   show_video_screenshot_button: Show player screenshot button
   show_video_screenshot_button_desc: Show a button in the video player controls for capturing the current video frame. The screenshot shortcut remains available when the button is hidden and can be configured in Shortcuts settings.
   enable_listen_video: Enable listen-video mode
@@ -1727,7 +1727,7 @@ widescreen:
   collapse_right: Collapse right sidebar
   collapse_left: Collapse left sidebar
   exit: Exit
-  exit_title: Exit Bewly widescreen
+  exit_title: Exit IrisCat widescreen
   loading: Loading widescreen mode…
   exit_overlay: Exit overlay
   comments: Comments

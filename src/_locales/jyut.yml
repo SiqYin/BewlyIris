@@ -131,8 +131,8 @@ settings:
   following_sort_group: 按分組
   title: 設定
   menu_general: 一般
-  menu_bewly_pages: Bewly 頁面
-  menu_bewly_components: Bewly 元件
+  menu_bewly_pages: IrisCat 頁面
+  menu_bewly_components: IrisCat 元件
   menu_bilibili: Bilibili
   menu_navigation: 頁面同元件
   menu_playback: 播放同聲音
@@ -321,7 +321,7 @@ settings:
   group_home_tabs: 主頁分頁欄
   group_home_layout: 主頁版面
   group_original_moments_page: Bilibili 頁面
-  group_new_moments_page: Bewly動態頁
+  group_new_moments_page: IrisCat動態頁
   group_new_moments_page_desc: 呢個頁面唔係最終成品，相關形態之後可能會有較大改動。
   group_moments_filters: 動態過濾
   group_moments_sidebar: 動態頁左邊元件
@@ -352,16 +352,16 @@ settings:
   moments_show_up_list: 顯示經常去嘅 UP 主
   moments_visible_components: 顯示元件
   moments_visible_components_original_desc: 控制 Bilibili 原版動態頁側欄同橫幅等元件係咪顯示。主題色代表顯示，灰色代表隱藏。
-  moments_visible_components_plugin_desc: 控制 Bewly 動態頁側欄同頂部元件係咪顯示。主題色代表顯示，灰色代表隱藏。
+  moments_visible_components_plugin_desc: 控制 IrisCat 動態頁側欄同頂部元件係咪顯示。主題色代表顯示，灰色代表隱藏。
   moments_filtered_types: 過濾動態
-  moments_filtered_types_desc: 控制各類動態係咪出現喺 Bewly 動態流。選中（主題色）代表不過濾，未選中代表過濾。開咗過濾嘅話，每次最多掃描 100 條；留存率低過 60% 要手動再載入，達到 60% 或以上就會自動滾動載入。
+  moments_filtered_types_desc: 控制各類動態係咪出現喺 IrisCat 動態流。選中（主題色）代表不過濾，未選中代表過濾。開咗過濾嘅話，每次最多掃描 100 條；留存率低過 60% 要手動再載入，達到 60% 或以上就會自動滾動載入。
   moments_enable_live_preview: 直播動態懸停預覽
   moments_enable_live_preview_desc: 滑鼠懸停直播動態封面嗰陣播放直播預覽。
   moments_enable_video_preview: 影片動態懸停預覽
   moments_enable_video_preview_desc: 滑鼠懸停影片動態或轉發影片嗰陣播放預覽，可以設定觸發範圍、延遲同播放互動。
   moments_grid_columns: 動態欄數
   moments_tabs_position: 動態分頁欄位置
-  moments_grid_columns_desc: 設定 Bewly 動態頁想要嘅欄數。卡片尺寸會跟住欄數自動調整；視窗空間唔夠時會自動減少欄數，左邊欄同動態流會成組保持置中。
+  moments_grid_columns_desc: 設定 IrisCat 動態頁想要嘅欄數。卡片尺寸會跟住欄數自動調整；視窗空間唔夠時會自動減少欄數，左邊欄同動態流會成組保持置中。
   moments_grid_columns_option: '{count} 欄'
   moments_filter_up_recommendation: 過濾：UP主嘅推薦
   moments_filter_up_recommendation_desc: 過濾所有帶有「UP主嘅推薦」附加資訊嘅動態。
@@ -408,8 +408,8 @@ settings:
     呢個設定開咗之後，好似頂欄噉，撳咗啲嘢先至可以睇到更多嘅資料，而唔係淨係靠游標懸停就睇到。影片頁支援雙擊播放、暫停或者快進快退，撳住左右滑動調整播放進度，同埋由播放器左右邊緣上下滑動調整音量。（舊版頂欄唔支援呢個功能）
   show_home_button_in_touch_mode: 顯示 Home 掣
   show_home_button_in_touch_mode_desc: 喺觸控螢幕優化開咗嗰陣，喺頂欄 Logo 隔籬顯示一個可以直接跳去首頁嘅掣。
-  open_top_bar_items_in_bewly: 撳頂欄圖示打開 Bewly 頁面
-  open_top_bar_items_in_bewly_desc: 未開啟觸控螢幕優化嗰陣，撳 Logo、動態、收藏、歷史或者稍後再睇圖示，會跟「頂欄連結開啟行為」打開 Dock 入面對應嘅頁面，並沿用該頁面嘅 Bewly/原版 Bilibili 設定；未適配嘅圖示會維持原本行為。
+  open_top_bar_items_in_bewly: 撳頂欄圖示打開 IrisCat 頁面
+  open_top_bar_items_in_bewly_desc: 未開啟觸控螢幕優化嗰陣，撳 Logo、動態、收藏、歷史或者稍後再睇圖示，會跟「頂欄連結開啟行為」打開 Dock 入面對應嘅頁面，並沿用該頁面嘅 IrisCat/原版 Bilibili 設定；未適配嘅圖示會維持原本行為。
   show_bewly_or_bili_page_switcher_desc: 喺首頁 Logo 隔籬顯示切換掣，用嚟喺 IrisCat 頁面同 Bilibili 原版頁面之間切換。
   show_bewly_or_bili_page_switcher_on_more_pages_desc: 喺動態、搜尋、番劇、收藏、歷史同稍後再睇等 Bilibili 原版頁面顯示切換掣；切換到 IrisCat 時會開啟對應嘅插件頁面。
   hide_lv6_last_login_location_in_top_bar_user_pop: 隱藏 LV6 等級最後登入資訊顯示
@@ -716,7 +716,7 @@ settings:
     remove_pinned_title: 取消固定
     remove_wanted_title: 移出想睇
     pinned_empty: 仲未固定 UP 主。加咗之後會顯示喺動態欄右邊。
-    wanted_empty: 仲未加 UP 主。加咗之後可以喺 Bewly 動態頁用「想睇」篩選。
+    wanted_empty: 仲未加 UP 主。加咗之後可以喺 IrisCat 動態頁用「想睇」篩選。
   authorization_success: 授權成功
   filter_by_title: 根據標題篩選
   filter_by_title_desc: >
@@ -958,8 +958,8 @@ settings:
     web_fullscreen_desc: 切換網頁全螢幕模式。
     widescreen: 闊螢幕模式
     widescreen_desc: 切換闊螢幕模式。
-    bewly_widescreen: Bewly 闊螢幕
-    bewly_widescreen_desc: 切換 Bewly 闊螢幕模式。
+    bewly_widescreen: IrisCat 闊螢幕
+    bewly_widescreen_desc: 切換 IrisCat 闊螢幕模式。
   video_default_player_mode: 預設影片顯示模式
   video_danmaku_default_state: 彈幕預設狀態
   video_danmaku_default_state_desc: 開片時自動幫你調整彈幕開關，亦可以保持唔變。
@@ -977,9 +977,9 @@ settings:
     default: 預設
     web_fullscreen: 網頁全螢幕
     widescreen: 闊螢幕
-    bewly_widescreen: Bewly闊螢幕
-    exit_bewly_widescreen: 離開 Bewly 闊螢幕
-    switching_to_bewly_widescreen: 正在切換到 Bewly 闊螢幕，請稍候…
+    bewly_widescreen: IrisCat闊螢幕
+    exit_bewly_widescreen: 離開 IrisCat 闊螢幕
+    switching_to_bewly_widescreen: 正在切換到 IrisCat 闊螢幕，請稍候…
     enable_overrides: 啟用按情況覆寫
     enable_overrides_desc: 開啟之後，下面各播放情況嘅顯示模式設定先會生效。
     overrides: 情況顯示模式
@@ -991,17 +991,17 @@ settings:
     context_playlist: 收藏 / 播放列表
     context_moments_dialog: 動態影片彈窗
     context_moments_dialog_desc: 只對動態頁彈窗入面播放嘅影片生效，並優先過其他情況；揀「繼承預設」嗰陣仍然按影片所屬情況決定。
-    bewly_widescreen_sidebar_position: Bewly闊螢幕側邊欄位置
-    bewly_widescreen_sidebar_position_desc: 選擇 Bewly 闊螢幕模式下側邊欄嘅顯示位置
+    bewly_widescreen_sidebar_position: IrisCat闊螢幕側邊欄位置
+    bewly_widescreen_sidebar_position_desc: 選擇 IrisCat 闊螢幕模式下側邊欄嘅顯示位置
     bewly_widescreen_sidebar_position_left: 左側
     bewly_widescreen_sidebar_position_right: 右側
-    bewly_widescreen_auto_collapse_sidebar: 自動收起 Bewly 闊螢幕側欄
+    bewly_widescreen_auto_collapse_sidebar: 自動收起 IrisCat 闊螢幕側欄
     bewly_widescreen_auto_collapse_sidebar_desc: 開咗之後會優先保持影片完整高度，並按可用空間調整側欄。一般視窗空間唔夠時側欄會自動收起；超闊視窗預設顯示做窄條，滑鼠懸停時可以臨時展開。關咗之後側欄會保持完整顯示，並壓縮影片區域。開咗之後會關閉手動調整側欄闊度。
     bewly_widescreen_video_alignment: 影片置中基準
     bewly_widescreen_video_alignment_desc: 選擇影片喺側欄以外嘅可用區域置中，或者空間容許時相對成個瀏覽器視窗置中。呢個設定唔會改變側欄闊度或者展開狀態。
     bewly_widescreen_video_alignment_sidebar: 側欄外區域（預設）
     bewly_widescreen_video_alignment_viewport: 成個瀏覽器視窗（空間容許時）
-    enable_bewly_widescreen_sidebar_resize: 允許手動調整 Bewly 闊螢幕側欄闊度
+    enable_bewly_widescreen_sidebar_resize: 允許手動調整 IrisCat 闊螢幕側欄闊度
     enable_bewly_widescreen_sidebar_resize_desc: 開咗之後會關閉自動收起，側欄保持完整展開。可以拖動影片同側欄之間嘅分隔線調整闊度，並記住上次闊度；撳兩下分隔線恢復預設闊度。
   show_ip_location: 顯示 IP 歸屬地
   show_ip_location_desc: 喺影片/動向頁留言區顯示 IP 歸屬地。
@@ -1042,8 +1042,8 @@ settings:
   external_watch_later_button_desc: 啓用後，影片頁工具欄會顯示獨立嘅陣間至睇按鈕；按鈕會顯示目前影片狀態，可以撳一下加入或者剷走。
   show_vertical_video_zoom_button: 直屏影片放大按鈕
   show_vertical_video_zoom_button_desc: 喺直屏影片播放器顯示放大/縮小按鈕同畫面位置調整控制
-  show_bewly_widescreen_button: 顯示播放器 Bewly 闊螢幕按鈕
-  show_bewly_widescreen_button_desc: 啓用後，喺影片播放器控制欄顯示 Bewly 闊螢幕按鈕。
+  show_bewly_widescreen_button: 顯示播放器 IrisCat 闊螢幕按鈕
+  show_bewly_widescreen_button_desc: 啓用後，喺影片播放器控制欄顯示 IrisCat 闊螢幕按鈕。
   show_video_screenshot_button: 顯示播放器截圖按鈕
   show_video_screenshot_button_desc: 啓用後，喺影片播放器控制欄顯示擷取目前影片畫面嘅按鈕。關咗之後仍然可以用截圖快捷鍵，可以喺「快捷鍵」設定入面更改。
   enable_listen_video: 啓用聽影片功能
@@ -1642,7 +1642,7 @@ widescreen:
   collapse_right: 收起右欄
   collapse_left: 收起左欄
   exit: 退出
-  exit_title: 退出 Bewly 寬屏
+  exit_title: 退出 IrisCat 寬屏
   loading: 載入緊寬屏模式…
   exit_overlay: 退出遮罩
   comments: 留言

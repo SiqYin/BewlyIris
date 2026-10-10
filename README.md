@@ -1,120 +1,61 @@
-# BewlyCat
+# IrisCat
 
-![GitHub Release](https://img.shields.io/github/v/release/keleus/BewlyCat?label=Github) ![Chrome Web Store Version](https://img.shields.io/chrome-web-store/v/oopkfefbgecikmfbbapnlpjidoomhjpl?label=Chrome) ![Edge Addons Version](https://img.shields.io/badge/dynamic/json?color=blue&label=Edge&query=%24.version&url=https%3A%2F%2Fmicrosoftedge.microsoft.com%2Faddons%2Fgetproductdetailsbycrxid%2Faaammfjdfifgnfnbflolojihjfhdploj&prefix=v) ![Firefox Version](https://img.shields.io/amo/v/bewlycat?label=Firefox)
-
-![Github Downloads](https://img.shields.io/github/downloads/keleus/BewlyCat/total?label=Github%20Downloads) ![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/oopkfefbgecikmfbbapnlpjidoomhjpl?label=Chrome%20Users) ![Edge Addons Users](https://img.shields.io/badge/dynamic/json?label=Edge%20Users&query=%24.activeInstallCount&url=https%3A%2F%2Fmicrosoftedge.microsoft.com%2Faddons%2Fgetproductdetailsbycrxid%2Faaammfjdfifgnfnbflolojihjfhdploj) ![Firefox Users](https://img.shields.io/amo/users/bewlycat?label=Firefox%20Users)
-
-此项目基于[BewlyBewly](https://github.com/BewlyBewly/BewlyBewly)开发，并在其基础上进行功能扩充和调整，并合并了一些其他拓展的功能。
-
-<p align="center" style="margin-bottom: 0px !important;">
-<img width="300" alt="BewlyCat icon" src="./assets/icon-512.png"><br/>
+<p align="center">
+  <img width="200" alt="IrisCat" src="./assets/icon-512.png"><br/>
 </p>
 
-<p align="center">只需对您的 Bilibili 主页进行一些小更改即可。</p>
+<p align="center">让 Bilibili 更好用的浏览器扩展 · 内置 PiliBabel 海外 CDN 线路优选</p>
 
-## 👋 介绍
+IrisCat 是一个 Bilibili 网页增强扩展：重构并美化首页、动态、搜索、收藏、历史等页面，增强播放器体验，并集成了 **PiliBabel** 的海外 CDN 节点优选（UPOS + 动态延迟测速），改善海外访问时的加载与播放体验。
 
-> [!IMPORTANT]
-> 本插件及Fork代码禁止以任何形式的客户端封装！！！插件的目的是仅优化B站官方网站的使用体验。
->
-> 该项目面向我个人使用习惯修改。当然，欢迎功能建议与bug反馈。
->
-> 浏览器拓展商店上架均同时提交审核，实际更新速度取决于各个商店审核速度。请勿在issue中催促审核，商店异常行为由商店导致！
->
-> 不会打包safari，也不会在项目里做大量的safari only适配，如果有需要欢迎自行打包。
->
-> 本项目由MIT许可在原项目基础上开发，并亦与原作者联系取得了授权，包括上架Chrome应用商店等权利。
+## 功能特性
 
-> [!CAUTION]
-> 为了本项目能够在Github中直接被搜索到，项目将脱离BewlyBewly的Fork网络，成为一个独立的项目。但项目基于BewlyBewly是不变的～项目不会移除历史贡献者和原项目信息。
->
-> B站于2026年1月调整了首页推荐API，请更新至`1.5.6`版本及以上，以适配新的首页推荐，排行榜和分区。
+### 页面与浏览
 
-## 主要功能异同
+- 首页 / 动态 / 搜索 / 收藏 / 历史 / 稍后再看等页面的界面重构与美化
+- 顶栏与 Dock 自定义，支持后台打开、前进后退
+- 视频卡片、播放器组件的自定义快捷键
+- IrisCat 宽屏模式与侧栏自适应
+- 局部音量均衡（目标响度、强度可调）
+- 听视频模式（隐藏画面，仅保留声音）
+- 合集随机播放、倍速记忆、暗色基准色自定义
 
-### 新增功能
+### 海外加速（PiliBabel）
 
-1. 新增视频卡片、顶栏链接后台打开的能力。
-2. 新增默认播放器样式设置，当播放器样式是默认和宽屏的时候会自动滚动到弹幕框与底部平齐。
-3. 新增用户面板大会员权益领取入口。
-4. 新增首页推荐前进后退的能力。
-5. 新增合集播放自动关闭功能（需要在设置里开启），方便挂合集听歌。
-6. 新增web模式推荐按照点赞/播放比例过滤视频的能力（需要设置里开启）
-7. 参考了`Extension for Bilibili Player`插件的快捷键，支持了其中大部分功能的自定义快捷键。
-8. 记住倍速比例功能，开启后会记住上次倍速
-9. 合集视频随机播放功能
-10. 视频详情页稍后再看外置
-11. 自定义暗色基准色，开启后会根据基准色调整暗黑模式的显示
-12. 新增合集视频保持默认播放模式功能
+- 视频 CDN 与海外线路优选：UPOS 节点选择器 + 动态延迟测速
+- 播放与下载链路复用同一套线路优选逻辑
 
-13. 局部音量均衡：在「设置 → Bilibili → 播放器 → 音量均衡」启用，平衡不同视频之间的音量，并通过播放器组件关闭原生均衡。支持目标响度、强度调整及运行状态显示，详见[算法与资源管理](docs/local-loudness.md)。
+> 完整功能与差异说明见 [`docs/`](./docs)。
 
-### 删除功能
+## 安装
 
-1. ~~删除了原插件广东话翻译~~广东话翻译由BewlyBewly插件原作者维护（缺少翻译情况下默认显示英文翻译结果）
-2. 删除了内置字体，减少打包体积（14.4M -> 600K）
-3. 删除了旧版顶栏（减少开发成本），并重构了原项目的顶栏组件（功能无差异）
-4. 删除了部分影响功能正常使用的动画（如抽屉打开关闭的动画）
+IrisCat 目前仅通过 GitHub Releases 分发，未上架任何浏览器商店。
 
-## ⬇️ 安装
+1. 到 [Releases](https://github.com/SiqYin/IrisCat/releases) 下载最新的 `extension.zip`。
+2. 解压得到包含 `manifest.json` 的目录。
+3. 打开 `chrome://extensions`（或 `edge://extensions`），在右上角开启「开发者模式」。
+4. 点击「加载已解压的扩展程序」，选择上一步解压出的目录。
 
-### 在线安装
+> 若同时安装并启用了 BewlyCat，请先停用其中一个，避免功能叠加冲突。
 
-[Chrome应用商店](https://chromewebstore.google.com/detail/oopkfefbgecikmfbbapnlpjidoomhjpl)
+## 构建
 
-[Edge应用商店](https://microsoftedge.microsoft.com/addons/detail/bewlycat/aaammfjdfifgnfnbflolojihjfhdploj):审核周期不定
+构建与开发说明见 [CONTRIBUTING](./docs/CONTRIBUTING-cmn_CN.md)。
 
-[Firefox应用商店](https://addons.mozilla.org/en-US/firefox/addon/bewlycat/):已上线～（`1.0.2`版本已经修复抽屉问题）
+## 鸣谢
 
-> [!CAUTION]
-> 审核可能存在延迟，Chrome一般会晚30分钟-15天，Edge一般会晚3-30天，Firefox一般会晚1-30分钟
+IrisCat 是 [BewlyCat](https://github.com/keleus/BewlyCat) 的 fork，在其基础上合并了 PiliBabel 的海外 CDN 线路优选，并完成了品牌与功能方向的独立化。IrisCat 的诞生离不开以下上游项目与作者：
 
-### 本地安装
+- [BewlyCat](https://github.com/keleus/BewlyCat) 及其作者 **Keleus** —— IrisCat 的代码基础与主要功能来源，本项目在其之上继续发展。
+- [BewlyBewly](https://github.com/BewlyBewly/BewlyBewly) —— BewlyCat 的上游基础。
+- [PiliBabel](https://github.com/SiqYin/PiliBabel) —— 海外 CDN 线路优选机制的来源。
+- [vitesse-webext](https://github.com/antfu/vitesse-webext) —— 项目使用的扩展模板。
+- [Bilibili-Evolved](https://github.com/the1812/Bilibili-Evolved)、[bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)、[bilibili-app-recommend](https://github.com/magicdawn/bilibili-app-recommend) —— 部分功能与接口的实现参考。
 
-[CI](https://github.com/keleus/BewlyCat/actions)：使用最新代码自动构建
+## 许可
 
-[Releases](https://github.com/keleus/BewlyCat/releases)：稳定版
+IrisCat 继承 BewlyCat 的自定义许可（在 MIT 协议基础上附加限制），完整条款见 [LICENSE](./LICENSE)。请勿将本项目或其衍生代码用于该许可所禁止的用途（例如任何形式的客户端封装）。
 
-#### Edge 和 Chrome(推荐)
+## 贡献者
 
-> 确保您下载了 [extension.zip](https://github.com/keleus/BewlyCat/releases)。
-
-在 Edge 浏览器中打开 `edge://extensions` 或者在 Chrome 浏览器中打开 `chrome://extensions` 界面，只需将下载的 `extension.zip` 文件拖放到浏览器中即可完成安装。
-
-<details>
- <summary> Edge & Chrome 的另一种安装方法 </summary>
-
-#### Edge
-
-> 确保您下载了 [extension.zip](https://github.com/keleus/BewlyCat/releases) 并解压缩该文件。
-
-1. 在地址栏输入 `edge://extensions/` 并按回车
-2. 打开 `开发者模式` 并点击 `加载已解压的拓展程序` <br/> <img width="655" alt="image" src="https://user-images.githubusercontent.com/33394391/232246901-e3544c16-bde2-480d-b770-ca5242793963.png">
-3. 在浏览器中加载解压后的扩展文件夹
-
-#### Chrome
-
-> 确保您下载了 [extension.zip](https://github.com/keleus/BewlyCat/releases) 并解压缩该文件。
-
-1. 在地址栏输入 `chrome://extensions/` 并按回车
-2. 打开 `开发者模式` 并点击 `加载已解压的拓展程序` <br/> <img width="655" alt="Snipaste_2022-03-27_18-17-04" src="https://user-images.githubusercontent.com/33394391/160276882-13da0484-92c1-47dd-add8-7655c5c2bf1c.png">
-3. 在浏览器中加载解压后的扩展文件夹
-
-</details>
-
-## 🤝 构建项目参考
-
-查看 [CONTRIBUTING.md](docs/CONTRIBUTING-cmn_CN.md)
-
-### BewlyCat&BewlyBewly贡献者
-
-[![Contributors](https://contrib.rocks/image?repo=keleus/BewlyCat)](https://github.com/keleus/BewlyCat/graphs/contributors)
-
-## ❤️ 鸣谢
-
-- [BewlyBewly](https://github.com/BewlyBewly/BewlyBewly) - 该项目的基础
-- [vitesse-webext](https://github.com/antfu/vitesse-webext) - 该项目使用的模板
-- [UserScripts/bilibiliHome](https://github.com/indefined/UserScripts/tree/master/bilibiliHome),
-[bilibili-app-recommend](https://github.com/magicdawn/bilibili-app-recommend) - 获取访问密钥的参考来源
-- [Bilibili-Evolved](https://github.com/the1812/Bilibili-Evolved) - 部分功能实现
-- [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)
+[![Contributors](https://contrib.rocks/image?repo=SiqYin/IrisCat)](https://github.com/SiqYin/IrisCat/graphs/contributors)
