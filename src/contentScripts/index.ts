@@ -47,6 +47,7 @@ import { initListenVideoFeature } from './listenVideoFeature'
 import { initLocalLoudnessControl } from './localLoudnessControl'
 import type { PageLoadingGuard } from './pageLoading'
 import { initTouchPlayerGestures } from './touchPlayerGestures'
+import { initUposPlaybackGuard } from './uposPlaybackGuard'
 import { initVideoAspectRatioMemory } from './videoAspectRatioMemory'
 import { initVideoQualityMemory } from './videoQualityMemory'
 import { initVideoScreenshotControl } from './videoScreenshotControl'
@@ -1428,6 +1429,7 @@ else if (shouldInitializeContentScript) {
     initVideoScreenshotControl()
     initListenVideoFeature()
     initLocalLoudnessControl()
+    initUposPlaybackGuard()
     if (isVideoPlaybackPage() || isVideoOrBangumiPage())
       setupShortcutHandlers()
     runWhenNativeVideoHeaderStable(initBewlyWidescreenControl)
