@@ -44,9 +44,9 @@ BewlyIris 目前仅通过 GitHub Releases 分发，未上架任何浏览器商�
 
 ## 品牌资源
 
-- 图标 · 高清 PNG（2048×2048）：[`brand/bewlyiris-icon.png`](./brand/bewlyiris-icon.png)
-- 图标 · 矢量 SVG（1024×1024）：[`brand/bewlyiris-icon.svg`](./brand/bewlyiris-icon.svg)
-- 鸢尾花纹章 · 纯白矢量 SVG：[`brand/fleur-de-lis-white.svg`](./brand/fleur-de-lis-white.svg)
+- WuyuqIris · 高清 PNG（2048×2048）：[`brand/wuyuqiris-icon.png`](./brand/wuyuqiris-icon.png)
+- WuyuqIris · 矢量 SVG（1024×1024）：[`brand/wuyuqiris-icon.svg`](./brand/wuyuqiris-icon.svg)
+- WuyuqIris 鸢尾纹章 · 纯白矢量 SVG：[`brand/wuyuqiris-mark.svg`](./brand/wuyuqiris-mark.svg)
 
 ## 鸣谢
 
