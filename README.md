@@ -42,6 +42,12 @@ BewlyIris 目前仅通过 GitHub Releases 分发，未上架任何浏览器商�
 
 构建与开发说明见 [CONTRIBUTING](./docs/CONTRIBUTING-cmn_CN.md)。
 
+## 品牌资源
+
+- 图标 · 高清 PNG（2048×2048）：[`brand/bewlyiris-icon.png`](./brand/bewlyiris-icon.png)
+- 图标 · 矢量 SVG（1024×1024）：[`brand/bewlyiris-icon.svg`](./brand/bewlyiris-icon.svg)
+- 鸢尾花纹章 · 纯白矢量 SVG：[`brand/fleur-de-lis-white.svg`](./brand/fleur-de-lis-white.svg)
+
 ## 鸣谢
 
 BewlyIris 是 [BewlyCat](https://github.com/keleus/BewlyCat) 的 fork，在其基础上合并了 PiliBabel 的海外 CDN 线路优选，并完成了品牌与功能方向的独立化。BewlyIris 的诞生离不开以下上游项目与作者：
