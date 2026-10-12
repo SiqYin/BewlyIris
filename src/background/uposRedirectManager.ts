@@ -69,9 +69,10 @@ async function clearBadHosts(): Promise<void> {
   await browser.storage.local.remove(BAD_HOSTS_KEY)
 }
 
-/// 计算有序候选：先剔除黑名单主机；探测「优先」而非「门禁」——
-/// 有可达的就按 RTT 排序，一条都探不通也退回未拉黑的默认顺序（不因此放弃改写，
-/// 否则海外用户会退回被限速的大陆原生镜像）。全被拉黑则清空重来（多为临时抽风）。
+/// 计算有序候选：剔除黑名单主机后做 Range 预检，只保留真正可达(200/206)的镜像并按 RTT 排序。
+/// 一条都探不通就返回空 -> 上层不改写、走 B 站原生调度。（v2.3.0 曾把探测改成「优先」，
+/// 会在探测误判时强行改写到会截断视频分片的镜像，导致「有声无画 + 更卡」，故回退为「门禁」。）
+/// 全被拉黑则清空重来（多为临时抽风）。
 async function computeHosts(): Promise<string[]> {
   const bad = await getBadHosts()
   let candidates = OVERSEAS_ORDER.filter(h => !bad.includes(h))
@@ -80,11 +81,10 @@ async function computeHosts(): Promise<string[]> {
     candidates = [...OVERSEAS_ORDER]
   }
   const probed = await Promise.all(candidates.map(async host => ({ host, r: await probeLine(host) })))
-  const reachable = probed
+  return probed
     .filter(p => p.r.ok)
     .sort((a, b) => (a.r.ms ?? Number.POSITIVE_INFINITY) - (b.r.ms ?? Number.POSITIVE_INFINITY))
     .map(p => p.host)
-  return reachable.length ? reachable : candidates
 }
 
 async function ensureHosts(force = false): Promise<string[]> {
