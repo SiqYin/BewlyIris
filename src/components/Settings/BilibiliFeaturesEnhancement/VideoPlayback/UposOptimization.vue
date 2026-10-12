@@ -59,12 +59,15 @@ const regionLabelMap: Record<string, string> = {
 
 const detectedRegion = ref('')
 const pickedHost = ref('')
+const badCount = ref(0)
 const statusLoading = ref(false)
 
 async function loadStatus() {
-  const st = await browser.storage.local.get(['uposRegionDetect', 'uposAutoPick'])
+  const st = await browser.storage.local.get(['uposRegionDetect', 'uposAutoPick', 'uposBadHosts'])
   detectedRegion.value = (st.uposRegionDetect as { region?: string } | undefined)?.region ?? ''
-  pickedHost.value = (st.uposAutoPick as { host?: string } | undefined)?.host ?? ''
+  const pick = st.uposAutoPick as { hosts?: string[] } | undefined
+  pickedHost.value = pick?.hosts?.[0] ?? ''
+  badCount.value = Array.isArray(st.uposBadHosts) ? st.uposBadHosts.length : 0
 }
 
 const detectedLabel = computed(() => regionLabelMap[detectedRegion.value] ?? '未检测')
@@ -80,12 +83,12 @@ const effectiveDesc = computed(() => {
     return '走 B 站原生调度（大陆最快）'
   if (!eff)
     return '检测中…'
-  return `海外优选 → ${pickedName.value}`
+  return `海外优选 → ${pickedName.value}${badCount.value ? `（已拉黑 ${badCount.value} 条坏线）` : ''}`
 })
 
 async function redetect() {
   statusLoading.value = true
-  await browser.storage.local.remove(['uposRegionDetect', 'uposAutoPick'])
+  await browser.storage.local.remove(['uposRegionDetect', 'uposAutoPick', 'uposBadHosts'])
   detectedRegion.value = ''
   pickedHost.value = ''
   // 清缓存后切换开关，触发后台重新识别并应用（走一次 storage.onChanged）
