@@ -10,7 +10,7 @@ import { setupTabMsgListeners } from './messageListeners/tabs'
 import { setupSettingsCloudSync } from './settingsCloudSync'
 import { setupSettingsStorageCoordinator } from './settingsStorageCoordinator'
 import { setupTopBarStateBroker } from './topBarStateBroker'
-import { setupUposFallbackListener, syncUposRedirectRule } from './uposRedirectManager'
+import { syncUposRedirectRule } from './uposRedirectManager'
 import { setupWatchLaterStateBroker } from './watchLaterStateBroker'
 import { initWbiKeys } from './wbiSign'
 
@@ -163,4 +163,3 @@ setupTopBarStateBroker()
 setupWatchLaterStateBroker()
 setupContentScriptRefreshPrompt()
 setupLoginStateWatcher()
-setupUposFallbackListener()

@@ -22,6 +22,8 @@ export interface PageSettingsPayload {
   showIPLocation: boolean
   showSex: boolean
   skipConciseDanmaku: boolean
+  /** route B：当前是否处于「自动 + 海外」，MAIN 世界据此改写 playurl 候选直链。 */
+  uposOverseas: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -84,5 +86,6 @@ export function createPageSettingsPayload(value: unknown): PageSettingsPayload |
     showIPLocation: value.showIPLocation,
     showSex: value.showSex,
     skipConciseDanmaku: value.skipConciseDanmaku !== false,
+    uposOverseas: value.uposOverseas === true,
   }
 }

@@ -4871,6 +4871,51 @@ else if (shouldInitializePageScript) {
     }
   }
 
+  // ===== route B：海外播放线路优选（在 B 站已签名的候选直链里挑，不改写主机） =====
+  const OVERSEAS_CANDIDATE_RE = /upos-sz-mirror\w*ov\.bilivideo\.com|upos-hz-mirrorakam\.akamaized\.net|bcache/i
+
+  function isPlayurlFetch(input: RequestInfo | URL): boolean {
+    try {
+      const u = new URL(getFetchInputUrl(input), window.location.href)
+      return u.hostname === 'api.bilibili.com' && /\/x\/player\/(?:wbi\/)?playurl/.test(u.pathname)
+    }
+    catch {
+      return false
+    }
+  }
+
+  function pickOverseasStream(obj: Record<string, unknown>): boolean {
+    const baseKey = typeof obj.baseUrl === 'string' ? 'baseUrl' : (typeof obj.url === 'string' ? 'url' : null)
+    if (!baseKey)
+      return false
+    const base = obj[baseKey] as string
+    if (OVERSEAS_CANDIDATE_RE.test(base))
+      return false
+    const backups = [
+      ...(Array.isArray(obj.backupUrl) ? obj.backupUrl as string[] : []),
+      ...(Array.isArray(obj.backup_url) ? obj.backup_url as string[] : []),
+    ]
+    const cand = [base, ...backups].find(u => typeof u === 'string' && OVERSEAS_CANDIDATE_RE.test(u))
+    if (cand && cand !== base) {
+      obj[baseKey] = cand
+      return true
+    }
+    return false
+  }
+
+  function rewritePlayurlOverseas(json: unknown): boolean {
+    const data = (json as { data?: { dash?: { video?: unknown[], audio?: unknown[] }, durl?: unknown[] } })?.data
+    if (!data)
+      return false
+    let changed = false
+    const streams = [...(data.dash?.video ?? []), ...(data.dash?.audio ?? []), ...(data.durl ?? [])]
+    for (const s of streams) {
+      if (s && typeof s === 'object')
+        changed = pickOverseasStream(s as Record<string, unknown>) || changed
+    }
+    return changed
+  }
+
   const originalFetch = window.fetch
 
   function fetchWithSearchSettings(thisArg: unknown, input: RequestInfo | URL, init?: RequestInit) {
@@ -4889,14 +4934,38 @@ else if (shouldInitializePageScript) {
   }
 
   window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
-    if (isSearchResultFetch(input) && !settingsReady) {
-      return settingsReadyPromise.then(() => {
-        return fetchWithSearchSettings(this, input, init)
-      })
+    if (isSearchResultFetch(input)) {
+      const run = () => fetchWithSearchSettings(this, input, init)
+      return settingsReady ? run() : settingsReadyPromise.then(run)
     }
-    if (isSearchResultFetch(input))
-      return fetchWithSearchSettings(this, input, init)
-    return originalFetch.call(this, input, init)
+    const result = originalFetch.call(this, input, init)
+    if (!isPlayurlFetch(input))
+      return result
+    // route B：仅在「自动 + 海外」时改写 playurl 候选；任何异常都透传原始响应，绝不影响播放。
+    return result.then((response: Response) => {
+      if (currentSettings?.uposOverseas !== true)
+        return response
+      try {
+        return response.clone().json().then((json: unknown) => {
+          try {
+            if (rewritePlayurlOverseas(json)) {
+              return new Response(JSON.stringify(json), {
+                status: response.status,
+                statusText: response.statusText,
+                headers: { 'content-type': 'application/json; charset=utf-8' },
+              })
+            }
+          }
+          catch {
+            return response
+          }
+          return response
+        }).catch(() => response)
+      }
+      catch {
+        return response
+      }
+    })
   }
 
   // 页面加载完成后初始化随机播放（功能已迁移到contentScripts）

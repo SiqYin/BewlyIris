@@ -30,6 +30,7 @@ import { getPluginSearchResultsUrl, navigateToPluginSearchResultsInPlace, openSe
 import { setupShortcutHandlers } from '~/utils/shortcuts'
 import { SVG_ICONS } from '~/utils/svgIcons'
 import { openLinkInBackground } from '~/utils/tabs'
+import { ensureDetectedRegion, preferOverseas } from '~/utils/uposRegion'
 import { initVerticalVideoZoom, resetVerticalVideoZoom } from '~/utils/verticalVideoZoom'
 import { recordVideoVisitFromUrl } from '~/utils/videoVisitHistory'
 import { ensureResponsiveViewport } from '~/utils/viewportMeta'
@@ -47,7 +48,6 @@ import { initListenVideoFeature } from './listenVideoFeature'
 import { initLocalLoudnessControl } from './localLoudnessControl'
 import type { PageLoadingGuard } from './pageLoading'
 import { initTouchPlayerGestures } from './touchPlayerGestures'
-import { initUposPlaybackGuard } from './uposPlaybackGuard'
 import { initVideoAspectRatioMemory } from './videoAspectRatioMemory'
 import { initVideoQualityMemory } from './videoQualityMemory'
 import { initVideoScreenshotControl } from './videoScreenshotControl'
@@ -1429,7 +1429,6 @@ else if (shouldInitializeContentScript) {
     initVideoScreenshotControl()
     initListenVideoFeature()
     initLocalLoudnessControl()
-    initUposPlaybackGuard()
     if (isVideoPlaybackPage() || isVideoOrBangumiPage())
       setupShortcutHandlers()
     runWhenNativeVideoHeaderStable(initBewlyWidescreenControl)
@@ -1532,12 +1531,33 @@ else if (shouldInitializeContentScript) {
     }
   }
 
+  // route B：自动 + 海外时下发该标志，MAIN 世界据此改写 playurl 候选直链（不改写主机）。
+  let uposOverseasCache = false
+  async function refreshUposOverseas() {
+    try {
+      const s = settings.value
+      if (!s.enableUposOptimization || s.uposNode !== 'auto') {
+        uposOverseasCache = false
+      }
+      else {
+        const detected = await ensureDetectedRegion()
+        const region = s.uposRegion && s.uposRegion !== 'auto' ? s.uposRegion : detected
+        uposOverseasCache = preferOverseas(region)
+      }
+    }
+    catch {
+      uposOverseasCache = false
+    }
+    sendSettingsToPage(settings.value)
+  }
+
   // 发送设置更新到网页环境
   function sendSettingsToPage(value: unknown) {
     const pageSettings = createPageSettingsPayload(value)
     if (!pageSettings)
       return
 
+    pageSettings.uposOverseas = uposOverseasCache
     window.postMessage({
       type: 'BEWLY_SETTINGS_UPDATE',
       data: pageSettings,
@@ -1546,7 +1566,12 @@ else if (shouldInitializeContentScript) {
 
   void settingsReady.then(() => {
     sendSettingsToPage(settings.value)
+    void refreshUposOverseas()
   })
+  watch(
+    () => [settings.value.enableUposOptimization, settings.value.uposNode, settings.value.uposRegion].join('|'),
+    () => { void refreshUposOverseas() },
+  )
 
   // 设置水合后的迁移会连续写入自定义播放字段；等视频页原生顶栏稳定后再
   // 注册这一组 watcher，避免迁移回调介入 B 站的第二次页面挂载。
