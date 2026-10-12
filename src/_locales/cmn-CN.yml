@@ -504,6 +504,10 @@ settings:
   show_listen_video_button: 显示播放器「听视频」按钮
   show_listen_video_button_desc: 启用后，在视频播放器控制栏中显示听视频切换按钮：隐藏视频画面仅保留声音，以封面和标题组成音频播放界面。关闭后仍可使用快捷键切换，可在「快捷键」设置中配置。
   upos_optimization_title: 视频 CDN 与海外线路优选 (PiliBabel 加速)
+  upos_node_auto: 自动（按当前网络/地区智能选择）
+  upos_region: 使用地区
+  upos_region_desc: 默认自动识别当前 IP 所在地区，也可手动指定。大陆走 B 站原生调度，海外自动挑选最快加速镜像。
+  upos_detect_status: 当前网络检测
   upos_optimization_desc: 针对海外用户（如日本、港澳台等）由于骨干网或 PCDN 调度导致的视频卡顿问题，强制重写至高速海外/国内优质 CDN 镜像。
   enable_upos_optimization: 启用 CDN 线路优选加速
   enable_upos_optimization_desc: 开启后将通过浏览器内核（declarativeNetRequest）自动拦截并重定向视频分段至指定的加速节点。

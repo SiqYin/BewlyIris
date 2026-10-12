@@ -193,6 +193,10 @@ settings:
   menu_appearance: 外觀
   menu_compatibility: 相容性
   menu_about: 關於
+  upos_node_auto: 自動（依目前網路/地區智慧選擇）
+  upos_region: 使用地區
+  upos_region_desc: 預設自動辨識目前 IP 所在地區，亦可手動指定。大陸走 B 站原生調度，海外自動挑選最快加速鏡像。
+  upos_detect_status: 目前網路偵測
   menu_changelog: 更新日誌
   experimental: 實驗性
 

@@ -4873,11 +4873,25 @@ else if (shouldInitializePageScript) {
 
   // ===== route B：海外播放线路优选（在 B 站已签名的候选直链里挑，不改写主机） =====
   const OVERSEAS_CANDIDATE_RE = /upos-sz-mirror\w*ov\.bilivideo\.com|upos-hz-mirrorakam\.akamaized\.net|bcache/i
+  const UPOS_DEBUG = false
+  function uposLog(...args: unknown[]) {
+    if (UPOS_DEBUG)
+      console.log('[BewlyIris][UPOS]', ...args)
+  }
+
+  function isPlayurlUrl(urlStr: string): boolean {
+    try {
+      const u = new URL(urlStr, window.location.href)
+      return u.hostname === 'api.bilibili.com' && /\/x\/player\/(?:wbi\/)?playurl/.test(u.pathname)
+    }
+    catch {
+      return false
+    }
+  }
 
   function isPlayurlFetch(input: RequestInfo | URL): boolean {
     try {
-      const u = new URL(getFetchInputUrl(input), window.location.href)
-      return u.hostname === 'api.bilibili.com' && /\/x\/player\/(?:wbi\/)?playurl/.test(u.pathname)
+      return isPlayurlUrl(getFetchInputUrl(input))
     }
     catch {
       return false
@@ -4909,11 +4923,68 @@ else if (shouldInitializePageScript) {
       return false
     let changed = false
     const streams = [...(data.dash?.video ?? []), ...(data.dash?.audio ?? []), ...(data.durl ?? [])]
+    const hostsSeen = new Set<string>()
+    let baseMatched = false
     for (const s of streams) {
-      if (s && typeof s === 'object')
-        changed = pickOverseasStream(s as Record<string, unknown>) || changed
+      if (!s || typeof s !== 'object')
+        continue
+      const o = s as Record<string, unknown>
+      for (const k of ['baseUrl', 'base_url', 'url']) {
+        const u = o[k]
+        if (typeof u === 'string' && u) {
+          try {
+            hostsSeen.add((OVERSEAS_CANDIDATE_RE.test(u) ? '✓' : '') + new URL(u).host)
+            if (k === 'baseUrl' && OVERSEAS_CANDIDATE_RE.test(u))
+              baseMatched = true
+          }
+          catch { /* ignore */ }
+        }
+      }
+      for (const k of ['backupUrl', 'backup_url']) {
+        if (Array.isArray(o[k])) {
+          for (const u of o[k] as string[]) {
+            if (typeof u === 'string' && u) {
+              try {
+                hostsSeen.add((OVERSEAS_CANDIDATE_RE.test(u) ? '✓' : '') + new URL(u).host)
+              }
+              catch { /* ignore */ }
+            }
+          }
+        }
+      }
+      changed = pickOverseasStream(o) || changed
+    }
+    uposLog('候选主机(✓=海外):', [...hostsSeen].join('   ') || '(空)', '| baseUrl已是海外:', baseMatched)
+    if (baseMatched) {
+      try {
+        window.postMessage({ type: 'BEWLY_UPOS_STATUS', status: 'already-overseas' }, window.location.origin)
+      }
+      catch { /* ignore */ }
     }
     return changed
+  }
+
+  function chosenOverseasHost(json: unknown): string {
+    try {
+      const data = (json as { data?: { dash?: { video?: { baseUrl?: string }[] }, durl?: { url?: string }[] } })?.data
+      const u = data?.dash?.video?.[0]?.baseUrl ?? data?.durl?.[0]?.url
+      return u ? new URL(u).host : ''
+    }
+    catch {
+      return ''
+    }
+  }
+
+  let lastHitHost = ''
+  function announceUposHit(json: unknown) {
+    const host = chosenOverseasHost(json)
+    if (!host || host === lastHitHost)
+      return
+    lastHitHost = host
+    try {
+      window.postMessage({ type: 'BEWLY_UPOS_HIT', host }, window.location.origin)
+    }
+    catch { /* 忽略 */ }
   }
 
   const originalFetch = window.fetch
@@ -4949,6 +5020,7 @@ else if (shouldInitializePageScript) {
         return response.clone().json().then((json: unknown) => {
           try {
             if (rewritePlayurlOverseas(json)) {
+              announceUposHit(json)
               return new Response(JSON.stringify(json), {
                 status: response.status,
                 statusText: response.statusText,
@@ -4967,6 +5039,121 @@ else if (shouldInitializePageScript) {
       }
     })
   }
+
+  // B 站播放器用 XMLHttpRequest 取 playurl —— 同时钩住 XHR，改写其 responseText/response。
+  function installXhrPlayurlHook() {
+    const XHR = window.XMLHttpRequest
+    if (typeof XHR !== 'function')
+      return
+    const proto = XHR.prototype
+    const origOpen = proto.open
+    const origSend = proto.send
+    const descText = Object.getOwnPropertyDescriptor(proto, 'responseText')
+    const descResp = Object.getOwnPropertyDescriptor(proto, 'response')
+    if (!origOpen || !origSend)
+      return
+
+    proto.open = function (this: XMLHttpRequest, method: string, url: string | URL, ...rest: unknown[]) {
+      try {
+        ;(this as unknown as { __uposTarget?: string }).__uposTarget = typeof url === 'string' ? url : String(url)
+      }
+      catch { /* ignore */ }
+      return (origOpen as (...a: unknown[]) => void).apply(this, [method, url, ...rest])
+    }
+
+    proto.send = function (this: XMLHttpRequest, ...args: unknown[]) {
+      // eslint-disable-next-line ts/no-this-alias
+      const xhr = this
+      let isTarget = false
+      try {
+        isTarget = isPlayurlUrl((xhr as unknown as { __uposTarget?: string }).__uposTarget ?? '')
+      }
+      catch {
+        isTarget = false
+      }
+      if (isTarget) {
+        uposLog('拦截到 playurl XHR:', (xhr as unknown as { __uposTarget?: string }).__uposTarget)
+        try {
+          // 读取时再判定 uposOverseas，规避设置尚未就绪的时序问题。
+          const enabled = () => currentSettings?.uposOverseas === true
+          let readLogged = false
+          const tryRewriteObj = (obj: unknown): boolean => {
+            if (!obj || typeof obj !== 'object')
+              return false
+            try {
+              const ok = rewritePlayurlOverseas(obj)
+              if (ok) {
+                announceUposHit(obj)
+                uposLog('✓ 已改写为海外候选:', chosenOverseasHost(obj))
+              }
+              else {
+                uposLog('· 无需改写（当前 baseUrl 已是海外，或无海外候选）')
+              }
+              return ok
+            }
+            catch (e) {
+              uposLog('✗ 改写异常:', e)
+              return false
+            }
+          }
+          if (descText && typeof descText.get === 'function') {
+            Object.defineProperty(xhr, 'responseText', {
+              configurable: true,
+              get() {
+                const rt = xhr.responseType
+                const raw = descText!.get!.call(xhr) as string
+                if (!readLogged && xhr.readyState >= 4) {
+                  readLogged = true
+                  uposLog('读取 responseText: responseType=', rt, '| uposOverseas=', enabled())
+                }
+                if (enabled() && (rt === '' || rt === 'text') && xhr.readyState >= 4 && typeof raw === 'string' && raw.length) {
+                  try {
+                    const o = JSON.parse(raw)
+                    if (tryRewriteObj(o))
+                      return JSON.stringify(o)
+                  }
+                  catch { /* 透传 */ }
+                }
+                return raw
+              },
+            })
+          }
+          if (descResp && typeof descResp.get === 'function') {
+            Object.defineProperty(xhr, 'response', {
+              configurable: true,
+              get() {
+                const rt = xhr.responseType
+                const r = descResp!.get!.call(xhr)
+                if (!readLogged && xhr.readyState >= 4) {
+                  readLogged = true
+                  uposLog('读取 response: responseType=', rt, '| uposOverseas=', enabled(), '| 有data=', Boolean((r as { data?: unknown })?.data))
+                }
+                if (!enabled() || xhr.readyState < 4)
+                  return r
+                if (rt === 'json') {
+                  tryRewriteObj(r) // 就地改写 B 站已解析好的对象
+                  return r
+                }
+                if ((rt === '' || rt === 'text') && typeof r === 'string' && r.length) {
+                  try {
+                    const o = JSON.parse(r)
+                    if (tryRewriteObj(o))
+                      return JSON.stringify(o)
+                  }
+                  catch { /* 透传 */ }
+                }
+                return r
+              },
+            })
+          }
+        }
+        catch { /* defineProperty 失败则保持原生 */ }
+      }
+      return (origSend as (...a: unknown[]) => void).apply(xhr, args)
+    }
+  }
+
+  installXhrPlayurlHook()
 
   // 页面加载完成后初始化随机播放（功能已迁移到contentScripts）
 

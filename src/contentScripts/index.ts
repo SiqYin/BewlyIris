@@ -93,6 +93,11 @@ if (shouldInitializeContentScript) {
       })
     }
 
+    if (typeof message === 'object' && message !== null && 'type' in message && message.type === 'BEWLY_OPEN_SETTINGS') {
+      window.dispatchEvent(new CustomEvent('bewly-open-settings'))
+      return true
+    }
+
     return false
   })
 }

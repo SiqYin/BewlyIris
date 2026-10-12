@@ -67,6 +67,13 @@ function openSettings(target?: SettingsNavigationTarget) {
   showSettings.value = true
 }
 
+// 工具栏图标点击（经 background → contentScript 转发）打开设置面板。
+function handleExternalOpenSettings() {
+  openSettings()
+}
+window.addEventListener('bewly-open-settings', handleExternalOpenSettings)
+onBeforeUnmount(() => window.removeEventListener('bewly-open-settings', handleExternalOpenSettings))
+
 // The top-bar switcher is teleported to document.body, outside this Shadow DOM.
 // Raise the host while settings are open so the modal can stay above that layer.
 watch(showSettings, (visible) => {

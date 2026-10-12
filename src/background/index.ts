@@ -88,6 +88,21 @@ initWbiKeys().catch((error) => {
   console.error('[BewlyCat] WBI keys initialization error:', error)
 })
 
+// 工具栏图标点击 → 在当前 B 站标签打开页面内设置面板；不在 B 站则新开 B 站首页。
+browser.action?.onClicked.addListener(async (tab) => {
+  try {
+    const url = tab?.url ?? ''
+    const isBilibili = /^https?:\/\/(?:[a-z0-9-]+\.)*bilibili\.com/i.test(url)
+    if (tab?.id != null && isBilibili)
+      await browser.tabs.sendMessage(tab.id, { type: 'BEWLY_OPEN_SETTINGS' })
+    else
+      await browser.tabs.create({ url: 'https://www.bilibili.com' })
+  }
+  catch (error) {
+    console.error('[BewlyIris] 工具栏点击打开设置失败:', error)
+  }
+})
+
 function isExtensionUri(url: string) {
   return new URL(url).origin === new URL(browser.runtime.getURL('')).origin
 }

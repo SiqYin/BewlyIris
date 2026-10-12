@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import browser from 'webextension-polyfill'
 
@@ -58,23 +58,29 @@ const regionLabelMap: Record<string, string> = {
 }
 
 const detectedRegion = ref('')
-const pickedHost = ref('')
-const badCount = ref(0)
 const statusLoading = ref(false)
+const uposHitCount = ref(0)
+const alreadyOverseas = ref(false)
+
+function onUposHitMessage(event: MessageEvent) {
+  if (event.source !== window || !event.data || typeof event.data !== 'object')
+    return
+  const payload = event.data as { type?: string, host?: string, status?: string }
+  if (payload.type === 'BEWLY_UPOS_HIT') {
+    uposHitCount.value++
+    alreadyOverseas.value = false
+  }
+  else if (payload.type === 'BEWLY_UPOS_STATUS' && payload.status === 'already-overseas') {
+    alreadyOverseas.value = true
+  }
+}
 
 async function loadStatus() {
-  const st = await browser.storage.local.get(['uposRegionDetect', 'uposAutoPick', 'uposBadHosts'])
+  const st = await browser.storage.local.get('uposRegionDetect')
   detectedRegion.value = (st.uposRegionDetect as { region?: string } | undefined)?.region ?? ''
-  const pick = st.uposAutoPick as { hosts?: string[] } | undefined
-  pickedHost.value = pick?.hosts?.[0] ?? ''
-  badCount.value = Array.isArray(st.uposBadHosts) ? st.uposBadHosts.length : 0
 }
 
 const detectedLabel = computed(() => regionLabelMap[detectedRegion.value] ?? '未检测')
-const pickedName = computed(() => {
-  const node = UPOS_NODES.find(n => n.host === pickedHost.value)
-  return node?.name ?? (pickedHost.value || '—')
-})
 const effectiveDesc = computed(() => {
   const eff = settings.value.uposRegion && settings.value.uposRegion !== 'auto'
     ? settings.value.uposRegion
@@ -83,14 +89,15 @@ const effectiveDesc = computed(() => {
     return '走 B 站原生调度（大陆最快）'
   if (!eff)
     return '检测中…'
-  return `海外优选 → ${pickedName.value}${badCount.value ? `（已拉黑 ${badCount.value} 条坏线）` : ''}`
+  if (alreadyOverseas.value)
+    return 'B 站已下发海外直链（无需优化）'
+  return '海外优先：仅当出现更优海外候选时才自动切换'
 })
 
 async function redetect() {
   statusLoading.value = true
-  await browser.storage.local.remove(['uposRegionDetect', 'uposAutoPick', 'uposBadHosts'])
+  await browser.storage.local.remove(['uposRegionDetect'])
   detectedRegion.value = ''
-  pickedHost.value = ''
   // 清缓存后切换开关，触发后台重新识别并应用（走一次 storage.onChanged）
   settings.value.enableUposOptimization = false
   await nextTick()
@@ -102,8 +109,12 @@ async function redetect() {
 }
 
 onMounted(() => {
+  window.addEventListener('message', onUposHitMessage)
   if (settings.value.uposNode === AUTO_UPOS_NODE_ID)
     loadStatus()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('message', onUposHitMessage)
 })
 watch(() => settings.value.uposNode, (v) => {
   if (v === AUTO_UPOS_NODE_ID)
@@ -228,7 +239,7 @@ async function testAllNodes() {
       <SettingsItem
         v-if="settings.uposNode === AUTO_UPOS_NODE_ID"
         :title="t('settings.upos_detect_status') || '当前网络检测'"
-        :desc="`识别地区：${detectedLabel} · 生效策略：${effectiveDesc}`"
+        :desc="`识别地区：${detectedLabel} · 生效策略：${effectiveDesc} · route B 已优化 ${uposHitCount} 次`"
         right-width="auto"
       >
         <Button

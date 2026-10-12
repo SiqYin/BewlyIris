@@ -16,14 +16,16 @@ export async function getManifest() {
     version: pkg.version,
     description: pkg.description,
     homepage_url: pkg.homepage,
-    // action: {
-    //   default_icon: './assets/icon-512.png',
-    //   default_popup: './dist/popup/index.html',
-    // },
-    // options_ui: {
-    //   page: './dist/options/index.html',
-    //   open_in_tab: true,
-    // },
+    // 工具栏图标：不设 default_popup，点击触发 background 的 action.onClicked →
+    // 打开页面内设置面板（BewlyIris 的设置是注入在 B 站页面里的完整面板）。
+    action: {
+      default_title: 'BewlyIris — 点击打开设置',
+      default_icon: {
+        16: 'assets/icon-512.png',
+        48: 'assets/icon-512.png',
+        128: 'assets/icon-512.png',
+      },
+    },
 
     // Setting `persistent` to true in Manifest V3 results in an error in Firefox
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/background

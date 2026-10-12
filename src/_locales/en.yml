@@ -193,6 +193,10 @@ settings:
   menu_appearance: Appearance
   menu_compatibility: Compatibility
   menu_about: About
+  upos_node_auto: Auto (choose by current network/region)
+  upos_region: Region
+  upos_region_desc: Auto-detects your region from the current IP by default; you can also set it manually. Mainland uses Bilibili native scheduling; overseas auto-picks the fastest mirror.
+  upos_detect_status: Current network detection
   menu_changelog: Changelog
   experimental: Experimental
 
