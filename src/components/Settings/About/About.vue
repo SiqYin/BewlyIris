@@ -16,6 +16,8 @@ import {
   SETTINGS_CLOUD_SYNC_STATUS_MESSAGE,
 } from '~/utils/settingsCloudSyncProtocol'
 
+// 图标内联为 data URI：页面内直接渲染，不依赖 runtime.getURL / web_accessible_resources。
+import iconDataUri from '../../../../assets/icon-512.png?inline'
 import { version } from '../../../../package.json'
 import Maintenance from '../Advanced/Maintenance.vue'
 import SettingsItem from '../components/SettingsItem.vue'
@@ -202,7 +204,7 @@ async function handleCopyEnvironmentInfo() {
     <div class="about-content">
       <div relative w-200px m-auto>
         <img
-          :src="`${browser.runtime.getURL('/assets/icon-512.png')}`" alt="" width="200"
+          :src="iconDataUri" alt="" width="200"
         >
 
         <a

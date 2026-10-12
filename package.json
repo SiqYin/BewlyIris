@@ -2,7 +2,7 @@
   "name": "bewly-iris",
   "displayName": "BewlyIris",
   "type": "module",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "private": true,
   "packageManager": "pnpm@11.17.0",
   "description": "BewlyIris: make Bilibili more comfortable to use, with built-in PiliBabel overseas CDN node optimization.",
