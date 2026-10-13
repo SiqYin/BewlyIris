@@ -132,11 +132,11 @@ browser.runtime.onMessage.addListener((message: unknown, sender: browser.Runtime
   return false
 })
 
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  // 仅导航开始时回灰；彩色只由内容脚本注入上报点亮。
+  // 不按 tab.url 判断：扩展没有 tabs 权限，回调里 url 常为 undefined，会把彩色刷回灰。
   if (changeInfo.status === 'loading')
     void setActionIcon(tabId, false)
-  else if (changeInfo.url !== undefined)
-    void setActionIcon(tabId, isContentScriptTargetUrl(tab.url))
 })
 
 function isExtensionUri(url: string) {
