@@ -102,11 +102,6 @@ if (shouldInitializeContentScript) {
   })
 }
 
-if (shouldInitializeContentScript) {
-  // 内容脚本只在支持的页面注入：上报一次，后台据此点亮工具栏彩色图标。
-  void browser.runtime.sendMessage({ type: 'BEWLY_ICON_ACTIVE' }).catch(() => {})
-}
-
 const isFirefox: boolean = /Firefox/i.test(navigator.userAgent)
 const isElectronEnv = isElectron()
 

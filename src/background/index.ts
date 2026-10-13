@@ -103,42 +103,6 @@ browser.action?.onClicked.addListener(async (tab) => {
   }
 })
 
-// 工具栏图标按页面激活状态切换：内容脚本只在支持的页面注入，注入即上报 → 彩色；
-// 导航/离开 → 灰色。不依赖 tab.url（扩展未申请 tabs 权限，onUpdated 里 url 可能不可见）。
-const ACTIVE_ACTION_ICON = {
-  16: 'assets/icon-512.png',
-  48: 'assets/icon-512.png',
-  128: 'assets/icon-512.png',
-}
-const INACTIVE_ACTION_ICON = {
-  16: 'assets/icon-512-gray.png',
-  48: 'assets/icon-512-gray.png',
-  128: 'assets/icon-512-gray.png',
-}
-
-async function setActionIcon(tabId: number, active: boolean) {
-  try {
-    await browser.action?.setIcon({ tabId, path: active ? ACTIVE_ACTION_ICON : INACTIVE_ACTION_ICON })
-  }
-  catch { /* 标签页可能已关闭 */ }
-}
-
-browser.runtime.onMessage.addListener((message: unknown, sender: browser.Runtime.MessageSender) => {
-  if (typeof message === 'object' && message !== null && (message as { type?: string }).type === 'BEWLY_ICON_ACTIVE') {
-    const tabId = sender?.tab?.id
-    if (tabId != null)
-      void setActionIcon(tabId, true)
-  }
-  return false
-})
-
-browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  // 仅导航开始时回灰；彩色只由内容脚本注入上报点亮。
-  // 不按 tab.url 判断：扩展没有 tabs 权限，回调里 url 常为 undefined，会把彩色刷回灰。
-  if (changeInfo.status === 'loading')
-    void setActionIcon(tabId, false)
-})
-
 function isExtensionUri(url: string) {
   return new URL(url).origin === new URL(browser.runtime.getURL('')).origin
 }
