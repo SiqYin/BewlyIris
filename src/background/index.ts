@@ -103,7 +103,8 @@ browser.action?.onClicked.addListener(async (tab) => {
   }
 })
 
-// 工具栏图标按标签页激活状态切换：支持的 B 站页面 = 彩色，其余 = 灰色。
+// 工具栏图标按页面激活状态切换：内容脚本只在支持的页面注入，注入即上报 → 彩色；
+// 导航/离开 → 灰色。不依赖 tab.url（扩展未申请 tabs 权限，onUpdated 里 url 可能不可见）。
 const ACTIVE_ACTION_ICON = {
   16: 'assets/icon-512.png',
   48: 'assets/icon-512.png',
@@ -115,32 +116,27 @@ const INACTIVE_ACTION_ICON = {
   128: 'assets/icon-512-gray.png',
 }
 
-async function updateActionIcon(tabId: number, url?: string) {
+async function setActionIcon(tabId: number, active: boolean) {
   try {
-    await browser.action?.setIcon({
-      tabId,
-      path: isContentScriptTargetUrl(url) ? ACTIVE_ACTION_ICON : INACTIVE_ACTION_ICON,
-    })
+    await browser.action?.setIcon({ tabId, path: active ? ACTIVE_ACTION_ICON : INACTIVE_ACTION_ICON })
   }
   catch { /* 标签页可能已关闭 */ }
 }
 
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' || changeInfo.url !== undefined)
-    void updateActionIcon(tabId, tab.url)
-})
-
-browser.tabs.onActivated.addListener(async ({ tabId }) => {
-  try {
-    const tab = await browser.tabs.get(tabId)
-    void updateActionIcon(tabId, tab.url)
+browser.runtime.onMessage.addListener((message: unknown, sender: browser.Runtime.MessageSender) => {
+  if (typeof message === 'object' && message !== null && (message as { type?: string }).type === 'BEWLY_ICON_ACTIVE') {
+    const tabId = sender?.tab?.id
+    if (tabId != null)
+      void setActionIcon(tabId, true)
   }
-  catch { /* ignore */ }
+  return false
 })
 
-void browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
-  if (tab?.id != null)
-    void updateActionIcon(tab.id, tab.url)
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'loading')
+    void setActionIcon(tabId, false)
+  else if (changeInfo.url !== undefined)
+    void setActionIcon(tabId, isContentScriptTargetUrl(tab.url))
 })
 
 function isExtensionUri(url: string) {
