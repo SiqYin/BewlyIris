@@ -18,12 +18,13 @@ export async function getManifest() {
     homepage_url: pkg.homepage,
     // 工具栏图标：不设 default_popup，点击触发 background 的 action.onClicked →
     // 打开页面内设置面板（BewlyIris 的设置是注入在 B 站页面里的完整面板）。
+    // 默认用灰色图标；后台按标签页动态 setIcon：支持的 B 站页面显示彩色，其余灰色。
     action: {
       default_title: 'BewlyIris — 点击打开设置',
       default_icon: {
-        16: 'assets/icon-512.png',
-        48: 'assets/icon-512.png',
-        128: 'assets/icon-512.png',
+        16: 'assets/icon-512-gray.png',
+        48: 'assets/icon-512-gray.png',
+        128: 'assets/icon-512-gray.png',
       },
     },
 

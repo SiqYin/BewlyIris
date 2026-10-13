@@ -103,6 +103,46 @@ browser.action?.onClicked.addListener(async (tab) => {
   }
 })
 
+// 工具栏图标按标签页激活状态切换：支持的 B 站页面 = 彩色，其余 = 灰色。
+const ACTIVE_ACTION_ICON = {
+  16: 'assets/icon-512.png',
+  48: 'assets/icon-512.png',
+  128: 'assets/icon-512.png',
+}
+const INACTIVE_ACTION_ICON = {
+  16: 'assets/icon-512-gray.png',
+  48: 'assets/icon-512-gray.png',
+  128: 'assets/icon-512-gray.png',
+}
+
+async function updateActionIcon(tabId: number, url?: string) {
+  try {
+    await browser.action?.setIcon({
+      tabId,
+      path: isContentScriptTargetUrl(url) ? ACTIVE_ACTION_ICON : INACTIVE_ACTION_ICON,
+    })
+  }
+  catch { /* 标签页可能已关闭 */ }
+}
+
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' || changeInfo.url !== undefined)
+    void updateActionIcon(tabId, tab.url)
+})
+
+browser.tabs.onActivated.addListener(async ({ tabId }) => {
+  try {
+    const tab = await browser.tabs.get(tabId)
+    void updateActionIcon(tabId, tab.url)
+  }
+  catch { /* ignore */ }
+})
+
+void browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+  if (tab?.id != null)
+    void updateActionIcon(tab.id, tab.url)
+})
+
 function isExtensionUri(url: string) {
   return new URL(url).origin === new URL(browser.runtime.getURL('')).origin
 }
