@@ -1,7 +1,7 @@
 # BewlyIris
 
 <p align="center">
-  <img width="200" alt="BewlyIris" src="./assets/icon-512.png"><br/>
+  <img width="200" alt="BewlyIris" src="./brand/readme-hero-circle.png"><br/>
 </p>
 
 <p align="center">让 Bilibili 更好用的浏览器扩展 · 内置 PiliBabel 海外 CDN 线路优选</p>
@@ -47,6 +47,7 @@ BewlyIris 目前仅通过 GitHub Releases 分发，未上架任何浏览器商�
 - WuyuqIris · 高清 PNG（2048×2048）：[`brand/wuyuqiris-icon.png`](./brand/wuyuqiris-icon.png)
 - WuyuqIris · 矢量 SVG（1024×1024）：[`brand/wuyuqiris-icon.svg`](./brand/wuyuqiris-icon.svg)
 - WuyuqIris 鸢尾纹章 · 纯白矢量 SVG：[`brand/wuyuqiris-mark.svg`](./brand/wuyuqiris-mark.svg)
+- README 顶部圆形主视觉（1024×1024，正圆 + 缩小版纹章）：[`brand/readme-hero-circle.png`](./brand/readme-hero-circle.png)
 
 ## 鸣谢
 
