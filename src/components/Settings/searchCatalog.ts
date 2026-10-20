@@ -94,6 +94,12 @@ const dockRoute: SearchRoute = {
   secondaryTitleKey: 'settings.plugin.dock_and_sidebar',
   storageKey: bewlyComponentsStorageKey,
 }
+const favoritesRoute: SearchRoute = {
+  menu: MenuType.BewlyPages,
+  secondaryPage: 'favorites',
+  secondaryTitleKey: 'settings.plugin.favorites',
+  storageKey: bewlyPagesStorageKey,
+}
 const searchPageRoute: SearchRoute = {
   menu: MenuType.BewlyPages,
   secondaryPage: 'search',
@@ -314,6 +320,13 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
   ...createEntries(momentsRoute, [
     'settings.moments_hide_charge_exclusive',
   ], { targetTitleKey: 'settings.moments_filter_charge_dynamic' }),
+  ...createEntries(favoritesRoute, [
+    'settings.plugin.favorites',
+    'settings.group_favorite_organizer',
+    'settings.favorite_organizer.sync_after_triple',
+    'settings.favorite_organizer.batch_title',
+    'settings.favorite_organizer.rules_title',
+  ]),
   ...createEntries(videoCardRoute, [
     'settings.plugin.video_card',
     'settings.group_video_card_grid',
@@ -334,6 +347,7 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
     'settings.group_video_card_content',
     'settings.show_video_card_author_avatar',
     'settings.show_video_card_author_name',
+    'settings.show_video_card_category',
     'settings.show_video_card_video_tag',
     'settings.show_video_card_recommend_tag',
     'settings.show_video_card_publish_time',
@@ -353,6 +367,7 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
     'video_card.operation.open_in_new_window',
     'video_card.operation.open_in_current_tab',
     'video_card.operation.open_in_drawer',
+    'video_card.operation.favorite',
     'video_card.operation.copy_video_link',
     'video_card.operation.copy_clean_video_link',
     'video_card.operation.copy_bv_number',
@@ -380,7 +395,7 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
   ...createEntries(topBarRoute, [
     'settings.group_topbar_pinned_channels',
     'settings.topbar_pinned_channels_title',
-  ]),
+  ], { keywordKeys: ['settings.pinned_manager.add', 'settings.pinned_manager.search', 'settings.pinned_manager.undo', 'settings.pinned_manager.categories', 'settings.topbar_pinned_channels_hint'] }),
   ...createEntries(topBarRoute, [
     'settings.topbar_switchers',
     'settings.show_bewly_or_bili_page_switcher',
@@ -493,6 +508,8 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
     'settings.group_player_components',
     'settings.skip_concise_danmaku',
     'settings.group_playback_memory',
+    'settings.custom_playback_rate',
+    'settings.playback_rate_step',
     'settings.remember_playback_rate',
     'settings.remember_video_aspect_ratio',
     'settings.group_video_page_actions',
@@ -596,6 +613,7 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
     'settings.disable_shadow',
     'settings.group_page_style',
     'settings.adapt_to_other_page_styles',
+    'settings.disable_background',
     'settings.group_color',
     'settings.theme',
     'settings.theme_schedule',
@@ -607,6 +625,7 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
     'settings.group_fonts',
     'settings.customize_font',
     'settings.remove_the_indent_from_chinese_punctuation',
+    'settings.cjk_latin_autospace',
     'settings.override_danmaku_font',
     'settings.customize_css',
     ...wallpaperTitleKeys,
@@ -702,5 +721,7 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
     'settings.export_settings',
     'settings.maintenance.reset_title',
     'settings.reset_settings',
+    'settings.open_source_license',
+    'settings.third_party_licenses',
   ]),
 ]

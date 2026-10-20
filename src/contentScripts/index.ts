@@ -3,7 +3,7 @@ import 'uno.css'
 
 import { createApp } from 'vue'
 
-import { useDark } from '~/composables/useDark'
+import { startIframeThemeListener, useDark } from '~/composables/useDark'
 import { CONTENT_SCRIPT_COMMIT, CONTENT_SCRIPT_PING, CONTENT_SCRIPT_PONG } from '~/constants/contentScript'
 import { BEWLY_IFRAME_DRAWER_HOST_CLASS, BEWLY_MOUNTED, IFRAME_DARK_MODE_CHANGE, IFRAME_TOP_BAR_CHANGE } from '~/constants/globalEvents'
 import { localSettings, settings, settingsReady } from '~/logic'
@@ -12,6 +12,9 @@ import { useTopBarStore } from '~/stores/topBarStore'
 import RESET_BEWLY_CSS from '~/styles/reset.css?raw'
 import api from '~/utils/api'
 import { applyBewlyWidescreen, BEWLY_WIDESCREEN_USER_EXIT, exitBewlyWidescreen, isBewlyWidescreenActive, isBewlyWidescreenEngaged, prepareBewlyWidescreenLoading } from '~/utils/bewlyWidescreen'
+import { isBilibiliWwwUrl } from '~/utils/bilibiliDesktopNavigation'
+import { isInBilibiliLiveContext } from '~/utils/bilibiliLive'
+import { stripBilibiliLocaleUrl } from '~/utils/bilibiliLocale'
 import { cleanupBilibiliScripts } from '~/utils/bilibiliScriptCleanup'
 import { captureOriginalBilibiliTopBar, ensureOriginalBilibiliTopBarAppended, resetBilibiliTopBarInlineStyles, shouldShowOriginalBilibiliTopBar } from '~/utils/bilibiliTopBar'
 import { findLeafActiveElement } from '~/utils/element'
@@ -21,22 +24,24 @@ import { runWhenIdle } from '~/utils/lazyLoad'
 import { getLocalWallpaper, hasLocalWallpaper, isLocalWallpaperUrl } from '~/utils/localWallpaper'
 import { getCookie, injectCSS, isElectron, isHomePage, isInIframe, isNotificationPage, isVideoOrBangumiPage, isVideoPlaybackPage, isWatchLaterListPage } from '~/utils/main'
 import { initNativeFavoriteSeasonPlayAllIntercept } from '~/utils/nativeFavoriteSeasonPlayAll'
-import { createPageSettingsPayload } from '~/utils/pageSettingsProtocol'
+import { createPageSettingsPayload, writePageBootSnapshot } from '~/utils/pageSettingsProtocol'
 import { isPhotoViewerOpen } from '~/utils/photoViewer'
 import { applyAutoPlayByVideoType, applyDefaultCaptionState, applyDefaultDanmakuState, applyRememberedPlaybackRate, defaultMode, getVideoElement, handleVideoPageNavigation, isPlayerDisplayModeReady, isPlayerShowingEndingRecommendation, isVideoPage, resetAutoPlayUserChangeFlag, resolveDefaultVideoPlayerMode, startAutoExitFullscreenMonitoring, startAutoPlayUserChangeMonitoring, startPlaybackRateMonitoring, webFullscreen, widescreen } from '~/utils/player'
 import { applyPreservedOrDefaultCustomPlay, applyRandomPlayActivationSettings, destroyRandomPlay, initRandomPlay, isCustomPlayPage, resetRandomPlayInitialization, syncRandomPlayOrder, syncRandomPlayUI } from '~/utils/randomPlay'
 import { markContentScriptHealthy } from '~/utils/refreshPrompt'
 import { getPluginSearchResultsUrl, navigateToPluginSearchResultsInPlace, openSearchResults, shouldUsePluginSearchResultsPage } from '~/utils/searchNavigation'
-import { setupShortcutHandlers } from '~/utils/shortcuts'
+import { installShortcutListener, setupShortcutHandlers } from '~/utils/shortcuts'
 import { SVG_ICONS } from '~/utils/svgIcons'
 import { openLinkInBackground } from '~/utils/tabs'
 import { ensureDetectedRegion, preferOverseas } from '~/utils/uposRegion'
 import { initVerticalVideoZoom, resetVerticalVideoZoom } from '~/utils/verticalVideoZoom'
+import { loadCurrentVideoPageInfo } from '~/utils/videoPageInfo'
 import { recordVideoVisitFromUrl } from '~/utils/videoVisitHistory'
 import { ensureResponsiveViewport } from '~/utils/viewportMeta'
 
 import { version } from '../../package.json'
 import { initBewlyWidescreenControl } from './bewlyWidescreenControl'
+import { setupFavoriteOrganizerTripleSync } from './features/favoriteOrganizerTripleSync'
 import { setupIframePhotoViewerDetector } from './features/iframePhotoViewerDetector'
 import { setupNativeHomeFeedHistory } from './features/nativeHomeFeedHistory'
 import { setupNotificationStateInvalidation } from './features/notificationStateInvalidation'
@@ -68,13 +73,17 @@ const contentScriptGlobal = globalThis as typeof globalThis & {
   __BEWLYCAT_CONTENT_SCRIPT_INITIALIZED__?: boolean
   __BEWLYCAT_PAGE_LOADING__?: PageLoadingGuard
 }
+// 直播站及其内嵌框架中不执行任何页面处理。
 const shouldInitializeContentScript = !contentScriptGlobal.__BEWLYCAT_CONTENT_SCRIPT_INITIALIZED__
+  && !isInBilibiliLiveContext()
 const bundledShadowStyleText = contentScriptGlobal.__BEWLYCAT_BUNDLED_STYLE_TEXT__
 const contentScriptManifest = browser.runtime.getManifest()
 const contentScriptRuntimeUrl = browser.runtime.getURL('')
 
 if (shouldInitializeContentScript) {
   contentScriptGlobal.__BEWLYCAT_CONTENT_SCRIPT_INITIALIZED__ = true
+  // 先于 B 站脚本注册快捷键监听，覆盖其默认快捷键时才能先拦截事件。
+  installShortcutListener()
   browser.runtime.onMessage.addListener((message: unknown) => {
     if (typeof message === 'object' && message !== null && 'type' in message && message.type === CONTENT_SCRIPT_PING) {
       const expected = 'expectedIdentity' in message ? message.expectedIdentity : undefined
@@ -105,7 +114,8 @@ if (shouldInitializeContentScript) {
 const isFirefox: boolean = /Firefox/i.test(navigator.userAgent)
 const isElectronEnv = isElectron()
 
-const currentUrl = document.URL
+// 多语言页面（如 /ja/history）按去掉语言段后的路径匹配支持页面
+const currentUrl = stripBilibiliLocaleUrl(document.URL)
 
 if (shouldInitializeContentScript && isHomePage()) {
   console.log('[BewlyCat][首页加载] 插件开始加载', {
@@ -242,6 +252,7 @@ else if (shouldInitializeContentScript) {
   setupOriginalMomentsFilter()
   setupNativeHomeFeedHistory()
   setupWatchLaterAutoRemove()
+  setupFavoriteOrganizerTripleSync()
   setupVideoWatchProgress()
   // Fix `OverlayScrollbars` not working in Firefox
   // https://github.com/fingerprintjs/fingerprintjs/issues/683#issuecomment-881210244
@@ -367,15 +378,14 @@ else if (shouldInitializeContentScript) {
 
     const shouldApplyFullStyles = applyBewlyDesignClasses()
 
-    // opus 详情分栏布局不依赖“适配其他页样式”，只要在 iframe 内就尝试重排
-    if (isInIframe())
+    // opus 详情分栏布局与图片查看器检测都不依赖“适配其他页样式”，只要在 iframe 内就启用；
+    // 否则关闭该设置后，首页 iframe 内打开大图时父页面顶栏不会隐藏，遮住关闭按钮（#1298）
+    if (isInIframe()) {
       setupOpusDetailDrawerLayout()
+      setupIframePhotoViewerDetector()
+    }
 
     if (shouldApplyFullStyles) {
-      // Setup iframe photo viewer detector (only in iframe)
-      if (isInIframe())
-        setupIframePhotoViewerDetector()
-
       // Remove the Bilibili Evolved's dark mode style
       runWhenIdle(async () => {
         const darkModeStyle = document.head.querySelector('#dark-mode')
@@ -529,12 +539,18 @@ else if (shouldInitializeContentScript) {
       return
 
     playbackBehaviorScheduledForKey = navigationKey
+    // 结束行为按稿件分 P 数区分分 P 与合集，与等待播放器的时间并行请求。
+    const pageInfoRequest = loadCurrentVideoPageInfo()
     if (playbackBehaviorTimer)
       clearTimeout(playbackBehaviorTimer)
     playbackBehaviorTimer = setTimeout(() => {
       playbackBehaviorTimer = undefined
-      applyEndPlaybackBehavior()
-      startAutoExitFullscreenMonitoring()
+      void pageInfoRequest.then(() => {
+        if (playbackBehaviorScheduledForKey !== navigationKey)
+          return
+        applyEndPlaybackBehavior()
+        startAutoExitFullscreenMonitoring()
+      })
     }, 2000)
   }
 
@@ -887,7 +903,7 @@ else if (shouldInitializeContentScript) {
 
   function getVideoCommentIdentifier(url = location.href): VideoCommentIdentifier | null {
     try {
-      const urlObj = new URL(url)
+      const urlObj = new URL(stripBilibiliLocaleUrl(url))
 
       const queryBvid = urlObj.searchParams.get('bvid')
       if (queryBvid && /^BV[0-9A-Za-z]+$/.test(queryBvid))
@@ -1563,6 +1579,11 @@ else if (shouldInitializeContentScript) {
       return
 
     pageSettings.uposOverseas = uposOverseasCache
+
+    // 页面脚本下次在 document_start 据此决定是否安装 UA / 弹幕实验钩子。
+    if (isBilibiliWwwUrl(location.href))
+      writePageBootSnapshot(pageSettings)
+
     window.postMessage({
       type: 'BEWLY_SETTINGS_UPDATE',
       data: pageSettings,
@@ -1694,6 +1715,9 @@ else if (shouldInitializeContentScript) {
       })
     }
   })
+
+  // useDark() 要等设置加载后才执行，提前记录父页面主题，之后由它继承。
+  startIframeThemeListener()
 
   // 监听来自父页面的黑暗模式切换消息（用于iframe跨域场景）
   window.addEventListener('message', (event) => {

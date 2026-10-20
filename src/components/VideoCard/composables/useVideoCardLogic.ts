@@ -7,7 +7,7 @@ import type { VideoInfo } from '~/models/video/videoInfo'
 import type { VideoPreviewResult } from '~/models/video/videoPreview'
 import { useTopBarStore } from '~/stores/topBarStore'
 import api from '~/utils/api'
-import { ensureFreshAppAccessToken, getTvSign, TVAppKey } from '~/utils/authProvider'
+import { ensureFreshAppAccessToken, requestAppClient } from '~/utils/authProvider'
 import { calcCurrentTime, numFormatter, parseStatNumber } from '~/utils/dataFormatter'
 import { computeFloatingMenuPosition } from '~/utils/floatingMenu'
 import { removeHttpFromUrl } from '~/utils/main'
@@ -25,25 +25,6 @@ interface VideoCardProps {
   horizontal?: boolean
   showPreview?: boolean
   moreBtn?: boolean
-}
-
-interface AppFeedFeedbackSelection {
-  reasonId?: number
-  feedbackId?: number
-}
-
-function createAppFeedFeedbackParams(video: Video, selection?: AppFeedFeedbackSelection) {
-  return {
-    access_key: appAuthTokens.value.accessToken,
-    goto: video.goto,
-    id: video.param || video.id,
-    reason_id: selection?.reasonId,
-    feedback_id: selection?.feedbackId,
-    build: 1,
-    mobi_app: 'android',
-    appkey: TVAppKey.appkey,
-    ts: Math.floor(Date.now() / 1000).toString(),
-  }
 }
 
 export function useVideoCardLogic(propsOrGetter: MaybeRefOrGetter<VideoCardProps>, savedState?: VideoCardState) {
@@ -65,7 +46,6 @@ export function useVideoCardLogic(propsOrGetter: MaybeRefOrGetter<VideoCardProps
   const removed = toRef(interactionState, 'removed')
   const moreBtnRef = ref<HTMLButtonElement | null>(null)
   const contextMenuRef = ref<HTMLDivElement | null>(null)
-  const selectedDislikeOpt = toRef(interactionState, 'selectedDislikeOpt')
   const videoCurrentTime = toRef(interactionState, 'videoCurrentTime')
   const isHover = ref<boolean>(false)
   const isPreviewFullscreen = ref<boolean>(false)
@@ -119,9 +99,7 @@ export function useVideoCardLogic(propsOrGetter: MaybeRefOrGetter<VideoCardProps
       return undefined
 
     let url = ''
-    if (props.value.video.url)
-      url = props.value.video.url
-    else if (props.value.video.bvid || props.value.video.aid)
+    if (props.value.video.url || props.value.video.bvid || props.value.video.aid)
       url = getCurrentVideoUrl(props.value.video, videoCurrentTime)
     else if (props.value.video.epid)
       url = `https://www.bilibili.com/bangumi/play/ep${props.value.video.epid}/`
@@ -193,8 +171,10 @@ export function useVideoCardLogic(propsOrGetter: MaybeRefOrGetter<VideoCardProps
     })
     const isStale = () => cancelled || isDisposed.value || !isActive.value || !isHover.value
 
-    if (identity !== previousIdentity)
+    if (identity !== previousIdentity) {
       clearPreviewVideoUrl()
+      videoCurrentTime.value = null
+    }
 
     if (!props.value.video || !newValue)
       return
@@ -364,7 +344,7 @@ export function useVideoCardLogic(propsOrGetter: MaybeRefOrGetter<VideoCardProps
   }
 
   function handleClick(event: MouseEvent) {
-    videoCurrentTime.value = getCurrentTime(videoElement)
+    videoCurrentTime.value = getCurrentTime(videoElement) ?? videoCurrentTime.value
     if (settings.value.videoCardLinkOpenMode === 'background' && videoUrl.value && !event.ctrlKey && !event.metaKey) {
       event.preventDefault()
       openLinkInBackground(videoUrl.value)
@@ -400,11 +380,13 @@ export function useVideoCardLogic(propsOrGetter: MaybeRefOrGetter<VideoCardProps
       if (!await ensureFreshAppAccessToken())
         return
 
-      const params = createAppFeedFeedbackParams(video, selectedDislikeOpt.value)
-
-      api.video.undoDislikeVideo({
-        ...params,
-        sign: getTvSign(params),
+      // 与 PiliPlus 的 feedDislikeCancel 一致，撤销只需 goto 与 id
+      requestAppClient('feedDislikeCancel', {
+        access_key: appAuthTokens.value.accessToken,
+        goto: video.goto,
+        id: video.param || video.id,
+        build: 1,
+        mobi_app: 'android',
       }).then((res) => {
         if (res.code === 0) {
           removed.value = false
@@ -419,8 +401,7 @@ export function useVideoCardLogic(propsOrGetter: MaybeRefOrGetter<VideoCardProps
     }
   }
 
-  function handleRemoved(selectedOpt?: AppFeedFeedbackSelection) {
-    selectedDislikeOpt.value = selectedOpt
+  function handleRemoved() {
     removed.value = true
   }
 
