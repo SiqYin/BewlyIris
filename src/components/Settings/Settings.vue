@@ -158,8 +158,8 @@ useSettingsUrlSync(computed(() => getMenuHref(activeMenu.value)), navigateToTarg
 
 watchEffect(() => {
   document.title = isSearching.value
-    ? `${t('settings.search.results_title')} - BewlyCat`
-    : `${titleDetail.value ?? title.value} - BewlyCat`
+    ? `${t('settings.search.results_title')} - BewlyIris`
+    : `${titleDetail.value ?? title.value} - BewlyIris`
 })
 
 const brandIconUrl = browser.runtime.getURL('/assets/icon-512.png')
@@ -170,7 +170,7 @@ const brandIconUrl = browser.runtime.getURL('/assets/icon-512.png')
     <aside class="settings-sidebar">
       <div class="settings-sidebar__brand">
         <img :src="brandIconUrl" alt="" width="32" height="32">
-        <span>BewlyCat</span>
+        <span>BewlyIris</span>
       </div>
       <nav class="settings-sidebar__nav" :aria-label="$t('settings.title')">
         <ul>
