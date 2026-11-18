@@ -6,6 +6,7 @@ import { useHomeTabState } from '~/composables/useHomeTabState'
 import type { GridLayoutType } from '~/logic'
 import type { DataItem as MomentItem, MomentResult } from '~/models/moment/moment'
 import api from '~/utils/api'
+import type { ApiErrorReportSource } from '~/utils/apiDiagnostics'
 import { decodeHtmlEntities } from '~/utils/htmlDecode'
 
 interface VideoElement {
@@ -30,6 +31,8 @@ const needToLoginFirst = tabState.ref<boolean>('needToLoginFirst', false)
 const offset = tabState.ref<string>('offset', '')
 const updateBaseline = tabState.ref<string>('updateBaseline', '')
 const noMoreContent = tabState.ref<boolean>('noMoreContent', false)
+const requestFailed = tabState.ref<boolean>('requestFailed', false)
+const errorReportSource: ApiErrorReportSource = { scene: '追番追剧', queries: ['getMoments'] }
 const noMoreContentWarning = tabState.ref<boolean>('noMoreContentWarning', false)
 const hasLoaded = tabState.ref<boolean>('hasLoaded', false)
 const { handleReachBottom, handlePageRefresh } = useBewlyApp()
@@ -55,6 +58,7 @@ async function initData() {
   videoList.value = []
   noMoreContent.value = false
   noMoreContentWarning.value = false
+  requestFailed.value = false
   hasLoaded.value = false
 
   await getData(version)
@@ -107,8 +111,10 @@ async function getData(version = requestVersion) {
       if (!isRequestCurrent(version))
         return
     }
-    if (isRequestCurrent(version) && loaded)
-      hasLoaded.value = true
+    if (isRequestCurrent(version)) {
+      requestFailed.value = !loaded
+      hasLoaded.value ||= loaded
+    }
   }
   finally {
     if (isRequestCurrent(version)) {
@@ -196,8 +202,10 @@ async function handleLoadMore() {
   isLoading.value = true
   try {
     const loaded = await getSubscribedSeriesVideos(version)
-    if (isRequestCurrent(version) && loaded)
-      hasLoaded.value = true
+    if (isRequestCurrent(version)) {
+      requestFailed.value = !loaded
+      hasLoaded.value ||= loaded
+    }
   }
   finally {
     if (isRequestCurrent(version))
@@ -217,6 +225,14 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({ initData })
+
+function getItemDisplayData(item: VideoElement) {
+  return item.displayData
+}
+
+function getItemKey(item: VideoElement) {
+  return item.uniqueId
+}
 </script>
 
 <template>
@@ -227,8 +243,10 @@ defineExpose({ initData })
       :loading="isLoading"
       :no-more-content="noMoreContentWarning"
       :need-to-login-first="needToLoginFirst"
-      :transform-item="(item: VideoElement) => item.displayData"
-      :get-item-key="(item: VideoElement) => item.uniqueId"
+      :request-failed="requestFailed"
+      :error-report-source="errorReportSource"
+      :transform-item="getItemDisplayData"
+      :get-item-key="getItemKey"
       video-type="bangumi"
       :show-watcher-later="true"
       @refresh="initData"

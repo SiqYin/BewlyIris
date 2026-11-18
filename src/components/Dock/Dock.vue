@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useElementSize, useWindowSize } from '@vueuse/core'
+import { useElementSize, useEventListener, useWindowSize } from '@vueuse/core'
 import type { CSSProperties } from 'vue'
-import { computed, ref } from 'vue'
+import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Icon from '~/components/Icon.vue'
@@ -14,10 +14,25 @@ import { AppPage } from '~/enums/appEnums'
 import { settings } from '~/logic'
 import type { DockItem } from '~/stores/mainStore'
 import { useMainStore } from '~/stores/mainStore'
+import { stripBilibiliLocaleUrl } from '~/utils/bilibiliLocale'
+import { getNativeBiliAppPage } from '~/utils/bilibiliNativePages'
 import { isHomePage, openLinkToNewTab } from '~/utils/main'
 import { matchesShortcutKey } from '~/utils/shortcutKeys'
 
 import Tooltip from '../Tooltip.vue'
+import {
+  ANIME_BODY_FILL_PATH,
+  ANIME_BODY_LINE_PATH,
+  ANIME_EYES_FILL_PATH,
+  ANIME_EYES_LINE_PATH,
+  CLOCK_FILL_CIRCLE_PATH,
+  CLOCK_HAND_FILL_PATH,
+  CLOCK_HAND_LINE_PATH,
+  CLOCK_RING_PATH,
+  WATCH_LATER_PLAY_FILL_PATH,
+  WATCH_LATER_PLAY_LINE_PATH,
+  WATCH_LATER_RING_PATH,
+} from './dockIconPaths'
 import type { HoveringDockItem } from './types'
 
 const props = defineProps<{
@@ -125,21 +140,181 @@ function handleGlobalMouseMove(event: MouseEvent) {
 
 const hoveringDockItem = reactive<HoveringDockItem>({
   themeMode: false,
-  settings: false,
 })
 const currentDockItems = ref<DockItem[]>([])
-const activatedDockItem = ref<DockItem>()
+
+type DockActionPulse = 'refresh' | 'back-to-top' | 'history'
+const dockActionPulse = ref<DockActionPulse>()
+let dockActionPulseTimer: number | undefined
+let dockActionPulseFrame: number | undefined
+
+function pulseDockAction(pulse: DockActionPulse) {
+  const applyPulse = () => {
+    dockActionPulse.value = pulse
+    dockActionPulseTimer = window.setTimeout(() => {
+      dockActionPulse.value = undefined
+      dockActionPulseTimer = undefined
+    }, 700)
+  }
+
+  const shouldReplay = dockActionPulse.value === pulse || dockActionPulseFrame !== undefined
+  if (dockActionPulseTimer !== undefined) {
+    window.clearTimeout(dockActionPulseTimer)
+    dockActionPulseTimer = undefined
+  }
+  if (dockActionPulseFrame !== undefined) {
+    cancelAnimationFrame(dockActionPulseFrame)
+    dockActionPulseFrame = undefined
+  }
+
+  if (shouldReplay) {
+    // 双 RAF 让移除动画类后的样式先完成一帧计算，再加回动画类。
+    dockActionPulse.value = undefined
+    dockActionPulseFrame = requestAnimationFrame(() => {
+      dockActionPulseFrame = requestAnimationFrame(() => {
+        dockActionPulseFrame = undefined
+        applyPulse()
+      })
+    })
+  }
+  else {
+    applyPulse()
+  }
+}
+
+// 与 dock-icon-click-rebound 的 CSS 时长保持一致
+const CLICK_REBOUND_DURATION = 320
+// 覆盖 dock 缩放过渡（300ms），避免布局切换造成的瞬时 mouseleave 清掉抑制
+const CLICK_SUPPRESSION_RELEASE_DELAY = 350
+const EDIT_DOCK_TARGET = 'edit-dock'
+const THEME_MODE_TARGET = 'theme-mode'
+
+const clickReboundTarget = ref<string>()
+const clickSuppressedTarget = ref<string>()
+let clickReboundTimer: number | undefined
+let clickReboundFrame: number | undefined
+let suppressionReleaseTimer: number | undefined
+let suppressionReleaseTarget: string | undefined
+
+function triggerDockIconClickFeedback(target: string, event?: MouseEvent) {
+  const button = event?.currentTarget instanceof HTMLElement ? event.currentTarget : undefined
+  if (button) {
+    const icon = Array.from(button.querySelectorAll('.dock-item-icon, .dock-edit-icon, .dock-theme-icon'))
+      .find(el => getComputedStyle(el).display !== 'none')
+    button.style.setProperty('--dock-click-rebound-from', icon ? getComputedStyle(icon).transform : 'none')
+  }
+
+  clickSuppressedTarget.value = target
+  const applyRebound = () => {
+    clickReboundTarget.value = target
+    // 从动画真正恢复时开始计时，避免 RAF 延后时提前结束回弹。
+    clickReboundTimer = window.setTimeout(() => {
+      clickReboundTarget.value = undefined
+      clickReboundTimer = undefined
+    }, CLICK_REBOUND_DURATION)
+  }
+
+  const shouldReplay = clickReboundTarget.value === target || clickReboundFrame !== undefined
+  if (clickReboundTimer !== undefined) {
+    window.clearTimeout(clickReboundTimer)
+    clickReboundTimer = undefined
+  }
+  if (clickReboundFrame !== undefined) {
+    cancelAnimationFrame(clickReboundFrame)
+    clickReboundFrame = undefined
+  }
+  if (shouldReplay) {
+    // 等移除动画类完成一帧样式计算，再重播回弹；等待期间的点击仍走此路径。
+    clickReboundTarget.value = undefined
+    clickReboundFrame = requestAnimationFrame(() => {
+      clickReboundFrame = requestAnimationFrame(() => {
+        clickReboundFrame = undefined
+        if (clickSuppressedTarget.value === target)
+          applyRebound()
+      })
+    })
+  }
+  else {
+    applyRebound()
+  }
+  if (suppressionReleaseTimer) {
+    window.clearTimeout(suppressionReleaseTimer)
+    suppressionReleaseTimer = undefined
+  }
+  suppressionReleaseTarget = undefined
+}
+
+function scheduleClickSuppressionRelease(target: string) {
+  if (clickSuppressedTarget.value !== target)
+    return
+  if (suppressionReleaseTimer)
+    window.clearTimeout(suppressionReleaseTimer)
+  suppressionReleaseTarget = target
+  suppressionReleaseTimer = window.setTimeout(() => {
+    if (clickSuppressedTarget.value === target)
+      clickSuppressedTarget.value = undefined
+    suppressionReleaseTimer = undefined
+    suppressionReleaseTarget = undefined
+  }, CLICK_SUPPRESSION_RELEASE_DELAY)
+}
+
+function cancelClickSuppressionRelease(target: string) {
+  if (suppressionReleaseTarget !== target)
+    return
+  if (suppressionReleaseTimer)
+    window.clearTimeout(suppressionReleaseTimer)
+  suppressionReleaseTimer = undefined
+  suppressionReleaseTarget = undefined
+}
+
+function clearClickSuppression(target: string) {
+  if (clickSuppressedTarget.value !== target)
+    return
+  if (suppressionReleaseTimer) {
+    window.clearTimeout(suppressionReleaseTimer)
+    suppressionReleaseTimer = undefined
+  }
+  suppressionReleaseTarget = undefined
+  clickSuppressedTarget.value = undefined
+}
+
+function handleDockIconBlur(target: string, event: FocusEvent) {
+  if (event.currentTarget instanceof Element && event.currentTarget.matches(':hover'))
+    return
+  clearClickSuppression(target)
+}
+
+// 每个导航图标按自身语义取一个悬停动画，未列出的页面保持静止
+const dockIconAnimationClasses: Partial<Record<AppPage, string>> = {
+  [AppPage.Home]: 'dock-icon-anim-home',
+  [AppPage.Search]: 'dock-icon-anim-search',
+  [AppPage.Anime]: 'dock-icon-anim-anime',
+  [AppPage.Favorites]: 'dock-icon-anim-favorites',
+  [AppPage.History]: 'dock-icon-anim-history',
+  [AppPage.WatchLater]: 'dock-icon-anim-watch-later',
+  [AppPage.Moments]: 'dock-icon-anim-moments',
+}
+
+const clockHandMaskId = `dock-clock-hand-mask-${useId()}`
+const animeEyeMaskId = `dock-anime-eye-mask-${useId()}`
+
+const backToTopButtonEnabled = computed((): boolean => !settings.value.disableBackToTopButtonOnDock)
+const refreshButtonEnabled = computed((): boolean => !settings.value.disableRefreshButtonOnDock)
 
 const dockEditActions = computed(() => [
   {
     key: 'refresh' as const,
     label: t('common.operation.refresh'),
-    icon: 'line-md:rotate-270',
+    icon: 'tabler:reload',
+    settingsTitleKey: 'settings.disable_refresh_button_on_dock',
+    hidden: !refreshButtonEnabled.value,
   },
   {
     key: 'backToTop' as const,
     label: t('layout_editor.back_to_top'),
     icon: 'line-md:arrow-small-up',
+    settingsTitleKey: 'settings.disable_back_to_top_button_on_dock',
+    hidden: !backToTopButtonEnabled.value,
   },
 ])
 
@@ -157,6 +332,10 @@ const tooltipPlacement = computed(() => {
  * Whether to show the back to top or refresh button
  */
 const showBackToTopOrRefreshButton = computed((): boolean => {
+  // 这些操作只作用于插件页面，原站页面由浏览器自身处理。
+  if (settings.value.useOriginalBilibiliHomepage)
+    return false
+
   const dockItemConfig = settings.value.dockItemsConfig.find(e => e.page === props.activatedPage)
   if (dockItemConfig && dockItemConfig.useOriginalBiliPage) {
     return false
@@ -170,11 +349,14 @@ const canRefreshCurrentPage = computed((): boolean => {
   if (props.activatedPage === AppPage.Search || props.activatedPage === AppPage.SearchResults)
     return false
 
-  return props.activatedPage !== AppPage.Home || homeActivatedPage.value === HomeSubPage.ForYou || canRefreshHomeSubPage.value
+  return props.activatedPage !== AppPage.Home || homeActivatedPage.value !== HomeSubPage.Following || canRefreshHomeSubPage.value
 })
 
+// 刷新按钮可单独隐藏；快捷键刷新仍按 canRefreshCurrentPage 判断，不受按钮显隐影响
+const showRefreshButton = computed((): boolean => refreshButtonEnabled.value && canRefreshCurrentPage.value)
+
 const showBackToTopOrRefreshActions = computed((): boolean => {
-  return showBackToTopOrRefreshButton.value && (canRefreshCurrentPage.value || !reachTop.value)
+  return showBackToTopOrRefreshButton.value && (showRefreshButton.value || (backToTopButtonEnabled.value && !reachTop.value))
 })
 
 /**
@@ -182,6 +364,9 @@ const showBackToTopOrRefreshActions = computed((): boolean => {
  * Only show on Home page when current sub-page is ForYou
  */
 const shouldShowUndoForwardButtons = computed((): boolean => {
+  if (settings.value.useOriginalBilibiliHomepage)
+    return false
+
   return props.activatedPage === AppPage.Home && homeActivatedPage.value === HomeSubPage.ForYou
 })
 
@@ -200,7 +385,31 @@ watch(() => settings.value.autoHideDock, (newValue) => {
 // use Json stringify to watch the changes of the array item properties
 watch(() => JSON.stringify(settings.value.dockItemsConfig), () => {
   currentDockItems.value = computeDockItem()
+  const isDockItemTarget = (target: string | undefined): target is string =>
+    !!target && target !== EDIT_DOCK_TARGET && target !== THEME_MODE_TARGET
+  const reboundTarget = clickReboundTarget.value
+  if (isDockItemTarget(reboundTarget) && !currentDockItems.value.some(item => item.page === reboundTarget))
+    clickReboundTarget.value = undefined
+  const suppressedTarget = clickSuppressedTarget.value
+  if (isDockItemTarget(suppressedTarget) && !currentDockItems.value.some(item => item.page === suppressedTarget))
+    clearClickSuppression(suppressedTarget)
 }, { immediate: true })
+
+watch([() => settings.value.showLayoutEditButton, isLayoutEditing], ([show, editing]) => {
+  if (show || editing)
+    return
+  clearClickSuppression(EDIT_DOCK_TARGET)
+  if (clickReboundTarget.value === EDIT_DOCK_TARGET)
+    clickReboundTarget.value = undefined
+})
+
+watch([() => settings.value.disableLightDarkModeSwitcherOnDock, isLayoutEditing], ([disabled, editing]) => {
+  if (!disabled || editing)
+    return
+  clearClickSuppression(THEME_MODE_TARGET)
+  if (clickReboundTarget.value === THEME_MODE_TARGET)
+    clickReboundTarget.value = undefined
+})
 
 function computeDockItem(): DockItem[] {
   if (Array.isArray(settings.value.dockItemsConfig) && settings.value.dockItemsConfig.length < mainStore.dockItems.length) {
@@ -251,8 +460,20 @@ function computeDockItem(): DockItem[] {
 }
 
 function handleDockThemeClick(event: MouseEvent) {
-  if (!isLayoutEditing.value)
+  if (!isLayoutEditing.value) {
+    triggerDockIconClickFeedback(THEME_MODE_TARGET, event)
     toggleDark(event)
+  }
+}
+
+function handleDockThemeEnter() {
+  hoveringDockItem.themeMode = true
+  cancelClickSuppressionRelease(THEME_MODE_TARGET)
+}
+
+function handleDockThemeLeave() {
+  hoveringDockItem.themeMode = false
+  scheduleClickSuppressionRelease(THEME_MODE_TARGET)
 }
 
 function toggleHideDock(hide: boolean) {
@@ -289,36 +510,46 @@ function handleDockItemClick($event: MouseEvent, dockItem: DockItem) {
     return
 
   if ($event.ctrlKey || $event.metaKey) {
-    openDockItemInNewTab(dockItem)
+    openDockItemInNewTab(dockItem, $event)
     return
   }
 
-  activatedDockItem.value = dockItem
+  triggerDockIconClickFeedback(dockItem.page, $event)
   emit('dockItemClick', dockItem)
 }
 
-function openDockItemInNewTab(dockItem: DockItem) {
+function openDockItemInNewTab(dockItem: DockItem, event?: MouseEvent) {
   if (isLayoutEditing.value)
     return
 
-  activatedDockItem.value = dockItem
-  openLinkToNewTab(`https://www.bilibili.com/?page=${dockItem.page}`)
+  triggerDockIconClickFeedback(dockItem.page, event)
+  openLinkToNewTab(settings.value.useOriginalBilibiliHomepage ? dockItem.url : `https://www.bilibili.com/?page=${dockItem.page}`)
+}
+
+function handleDockEditClick(event: MouseEvent) {
+  triggerDockIconClickFeedback(EDIT_DOCK_TARGET, event)
+  toggleLayoutEditMode('dock')
 }
 
 function handleBackToTopOrRefresh(action: 'backToTop' | 'refresh' | 'auto' = 'auto') {
   if (action === 'backToTop') {
     emit('backToTop')
+    pulseDockAction('back-to-top')
   }
   else if (action === 'refresh') {
-    if (canRefreshCurrentPage.value)
+    if (canRefreshCurrentPage.value) {
       emit('refresh')
+      pulseDockAction('refresh')
+    }
   }
   else {
-    if (reachTop.value && canRefreshCurrentPage.value) {
+    if ((reachTop.value || !backToTopButtonEnabled.value) && showRefreshButton.value) {
       emit('refresh')
+      pulseDockAction('refresh')
     }
-    else {
+    else if (backToTopButtonEnabled.value) {
       emit('backToTop')
+      pulseDockAction('back-to-top')
     }
   }
 }
@@ -339,18 +570,44 @@ function handleForwardRefresh() {
 function handleHistoryNavigation() {
   if (showUndo.value) {
     handleUndoRefresh()
+    pulseDockAction('history')
   }
   else if (showForward.value) {
     handleForwardRefresh()
+    pulseDockAction('history')
   }
 }
 
-function isDockItemActivated(dockItem: DockItem): boolean {
-  // SearchResults 页面时也激活 Search 按钮
-  if (props.activatedPage === AppPage.SearchResults && dockItem.page === AppPage.Search) {
-    return isHomePage()
+const currentLocationHref = ref(window.location.href)
+useEventListener(window, ['pushstate', 'replacestate', 'popstate', 'hashchange', 'pageshow'], () => {
+  // Injected history notifications can arrive before the native history call.
+  queueMicrotask(() => {
+    currentLocationHref.value = window.location.href
+  })
+})
+
+const activeDockPage = computed(() => {
+  if (isHomePage(currentLocationHref.value)) {
+    if (settings.value.useOriginalBilibiliHomepage)
+      return AppPage.Home
+
+    return props.activatedPage === AppPage.SearchResults ? AppPage.Search : props.activatedPage
   }
-  return props.activatedPage === dockItem.page && isHomePage()
+
+  const currentUrl = stripBilibiliLocaleUrl(currentLocationHref.value)
+  const nativePage = getNativeBiliAppPage(currentUrl)
+  if (nativePage === AppPage.Favorites) {
+    // The Dock destination is the signed-in user's favorites, not any space.
+    const favorites = mainStore.dockItems.find(item => item.page === AppPage.Favorites)
+    if (!favorites || new URL(currentUrl).pathname.replace(/\/+$/, '') !== new URL(favorites.url).pathname)
+      return undefined
+  }
+
+  return nativePage
+})
+
+function isDockItemActivated(dockItem: DockItem): boolean {
+  return activeDockPage.value === dockItem.page
 }
 
 const { width: windowWidth, height: windowHeight } = useWindowSize()
@@ -409,14 +666,14 @@ const dockScale = computed((): number => {
   if (settings.value.dockPosition === 'bottom') {
     const maxButtonCount = isLayoutEditing.value
       ? 2
-      : (settings.value.backToTopAndRefreshButtonsAreSeparated ? 2 : 1)
+      : (settings.value.backToTopAndRefreshButtonsAreSeparated && backToTopButtonEnabled.value && refreshButtonEnabled.value ? 2 : 1)
     const maxUndoForwardButtonCount = settings.value.enableUndoRefreshButton ? 1 : 0
     additionalWidth = (maxButtonCount + maxUndoForwardButtonCount) * buttonSize + maxButtonCount * buttonGap
   }
   else {
     const maxButtonCount = isLayoutEditing.value
       ? 2
-      : (settings.value.backToTopAndRefreshButtonsAreSeparated ? 2 : 1)
+      : (settings.value.backToTopAndRefreshButtonsAreSeparated && backToTopButtonEnabled.value && refreshButtonEnabled.value ? 2 : 1)
     const maxUndoForwardButtonCount = settings.value.enableUndoRefreshButton ? 1 : 0
     additionalHeight = (maxButtonCount + maxUndoForwardButtonCount) * buttonSize + maxButtonCount * buttonGap
   }
@@ -544,6 +801,20 @@ onUnmounted(() => {
   if (mouseLeaveTimer) {
     clearTimeout(mouseLeaveTimer)
   }
+  if (dockActionPulseTimer) {
+    window.clearTimeout(dockActionPulseTimer)
+  }
+  if (dockActionPulseFrame !== undefined)
+    cancelAnimationFrame(dockActionPulseFrame)
+  if (clickReboundTimer) {
+    window.clearTimeout(clickReboundTimer)
+  }
+  if (suppressionReleaseTimer) {
+    window.clearTimeout(suppressionReleaseTimer)
+  }
+  if (clickReboundFrame !== undefined) {
+    cancelAnimationFrame(clickReboundFrame)
+  }
   if (dockReadyFrame !== undefined)
     cancelAnimationFrame(dockReadyFrame)
 })
@@ -586,6 +857,7 @@ onUnmounted(() => {
         'half-hide': settings.halfHideDock && !isLayoutEditing,
         'hover': dockContentHover,
         'ready': dockReady,
+        'disable-icon-animation': settings.disableDockIconAnimation,
       }"
       :style="dockTransformStyle"
       @mouseenter="handleDockAreaEnter"
@@ -602,24 +874,182 @@ onUnmounted(() => {
               data-layout-settings-menu="BewlyComponents"
               data-layout-settings-page="dock"
               data-layout-settings-title-key="settings.dock_content_adjustment"
-              :class="{
-                'active': isDockItemActivated(dockItem),
-                'inactive': hoveringDockItem.themeMode && isDark,
-                'disable-glowing-effect': settings.disableDockGlowingEffect,
-              }"
+              :class="[
+                dockIconAnimationClasses[dockItem.page],
+                {
+                  'active': isDockItemActivated(dockItem),
+                  'inactive': hoveringDockItem.themeMode && isDark,
+                  'disable-glowing-effect': settings.disableDockGlowingEffect,
+                  'dock-icon-click-rebound': clickReboundTarget === dockItem.page,
+                  'dock-icon-click-suppressed': clickSuppressedTarget === dockItem.page,
+                },
+              ]"
               @click="handleDockItemClick($event, dockItem)"
-              @click.middle="openDockItemInNewTab(dockItem)"
+              @click.middle="openDockItemInNewTab(dockItem, $event)"
+              @mouseenter="cancelClickSuppressionRelease(dockItem.page)"
+              @mouseleave="scheduleClickSuppressionRelease(dockItem.page)"
+              @blur="handleDockIconBlur(dockItem.page, $event)"
             >
-              <div
-                v-show="!isDockItemActivated(dockItem)"
-                :class="dockItem.icon"
-                text-xl
-              />
-              <div
-                v-show="isDockItemActivated(dockItem)"
-                :class="dockItem.iconActivated"
-                text-xl
-              />
+              <span class="dock-item-icon-wrap">
+                <!-- 路径取自 mingcute:bilibili-line/fill，拆出眼睛以支持眨眼 -->
+                <template v-if="dockItem.page === AppPage.Anime">
+                  <svg
+                    v-show="!isDockItemActivated(dockItem)"
+                    class="dock-item-icon dock-svg-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="currentColor"
+                      fill-rule="evenodd"
+                      :d="ANIME_BODY_LINE_PATH"
+                    />
+                    <path
+                      class="dock-anime-eyes"
+                      fill="currentColor"
+                      fill-rule="evenodd"
+                      :d="ANIME_EYES_LINE_PATH"
+                    />
+                  </svg>
+                  <svg
+                    v-show="isDockItemActivated(dockItem)"
+                    class="dock-item-icon dock-svg-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <mask
+                      :id="animeEyeMaskId"
+                      maskUnits="userSpaceOnUse"
+                      x="0" y="0" width="24"
+                      height="24"
+                    >
+                      <rect width="24" height="24" fill="#fff" />
+                      <path
+                        class="dock-anime-eyes"
+                        fill="#000"
+                        fill-rule="evenodd"
+                        :d="ANIME_EYES_FILL_PATH"
+                      />
+                    </mask>
+                    <path
+                      fill="currentColor"
+                      fill-rule="evenodd"
+                      :d="ANIME_BODY_FILL_PATH"
+                      :mask="`url(#${animeEyeMaskId})`"
+                    />
+                  </svg>
+                </template>
+
+                <template v-else-if="dockItem.page === AppPage.History">
+                  <svg
+                    v-show="!isDockItemActivated(dockItem)"
+                    class="dock-item-icon dock-svg-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="currentColor"
+                      :d="CLOCK_RING_PATH"
+                    />
+                    <path
+                      class="dock-clock-hand"
+                      fill="currentColor"
+                      :d="CLOCK_HAND_LINE_PATH"
+                    />
+                  </svg>
+                  <svg
+                    v-show="isDockItemActivated(dockItem)"
+                    class="dock-item-icon dock-svg-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <mask
+                      :id="clockHandMaskId"
+                      maskUnits="userSpaceOnUse"
+                      x="0" y="0" width="24"
+                      height="24"
+                    >
+                      <rect width="24" height="24" fill="#fff" />
+                      <path
+                        class="dock-clock-hand"
+                        fill="#000"
+                        :d="CLOCK_HAND_FILL_PATH"
+                      />
+                    </mask>
+                    <path
+                      fill="currentColor"
+                      :d="CLOCK_FILL_CIRCLE_PATH"
+                      :mask="`url(#${clockHandMaskId})`"
+                    />
+                  </svg>
+                </template>
+
+                <template v-else-if="dockItem.page === AppPage.WatchLater">
+                  <svg
+                    v-show="!isDockItemActivated(dockItem)"
+                    class="dock-item-icon dock-svg-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="currentColor"
+                      :d="WATCH_LATER_RING_PATH"
+                    />
+                    <path
+                      class="dock-carplay-play"
+                      fill="currentColor"
+                      :d="WATCH_LATER_PLAY_LINE_PATH"
+                    />
+                  </svg>
+                  <svg
+                    v-show="isDockItemActivated(dockItem)"
+                    class="dock-item-icon dock-svg-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fill="currentColor"
+                      :d="WATCH_LATER_RING_PATH"
+                    />
+                    <path
+                      class="dock-carplay-play"
+                      fill="currentColor"
+                      :d="WATCH_LATER_PLAY_FILL_PATH"
+                    />
+                  </svg>
+                </template>
+
+                <template v-else>
+                  <div
+                    v-show="!isDockItemActivated(dockItem)"
+                    class="dock-item-icon"
+                    :class="dockItem.icon"
+                    text-xl
+                  />
+                  <div
+                    v-show="isDockItemActivated(dockItem)"
+                    class="dock-item-icon"
+                    :class="dockItem.iconActivated"
+                    text-xl
+                  />
+                </template>
+
+                <svg
+                  v-if="dockItem.page === AppPage.Anime"
+                  class="dock-anime-signal"
+                  viewBox="-4 -4 32 32"
+                  aria-hidden="true"
+                >
+                  <path class="dock-anime-wave dock-anime-wave-1" d="M18.2 3.4Q18.8 2 17.4 1.2" />
+                  <path class="dock-anime-wave dock-anime-wave-2" d="M21.6 4.8Q23.8 0.4 19.1 -1.2" />
+                </svg>
+
+                <span
+                  v-if="dockItem.page === AppPage.Favorites"
+                  class="dock-favorites-sparkle"
+                  aria-hidden="true"
+                />
+              </span>
             </button>
           </Tooltip>
         </template>
@@ -659,21 +1089,26 @@ onUnmounted(() => {
               class="dock-item"
               bg="!dark-hover:$bew-bg" transform="!dark-hover:scale-100"
               :shadow="settings.disableDockGlowingEffect ? 'none' : '!dark-hover:[inset_4px_-2px_8px_hsla(226deg,85%,77%,1)]'"
+              :class="{
+                'dock-icon-click-rebound': clickReboundTarget === THEME_MODE_TARGET,
+                'dock-icon-click-suppressed': clickSuppressedTarget === THEME_MODE_TARGET,
+              }"
               pointer-events-auto
               @click="handleDockThemeClick"
-              @mouseenter="hoveringDockItem.themeMode = true"
-              @mouseleave="hoveringDockItem.themeMode = false"
+              @mouseenter="handleDockThemeEnter"
+              @mouseleave="handleDockThemeLeave"
+              @blur="handleDockIconBlur(THEME_MODE_TARGET, $event)"
             >
               <Transition name="fade">
                 <div v-show="hoveringDockItem.themeMode" absolute>
-                  <Icon v-if="isDark" icon="line-md:sunny-outline-to-moon-loop-transition" />
-                  <Icon v-else icon="line-md:moon-alt-to-sunny-outline-loop-transition" />
+                  <Icon v-if="isDark" icon="line-md:sunny-outline-to-moon-loop-transition" class="dock-theme-icon" />
+                  <Icon v-else icon="line-md:moon-alt-to-sunny-outline-loop-transition" class="dock-theme-icon" />
                 </div>
               </Transition>
               <Transition name="fade">
                 <div v-show="!hoveringDockItem.themeMode" absolute>
-                  <Icon v-if="isDark" icon="line-md:sunny-outline-to-moon-transition" />
-                  <Icon v-else icon="line-md:moon-to-sunny-outline-transition" />
+                  <Icon v-if="isDark" icon="line-md:sunny-outline-to-moon-transition" class="dock-theme-icon" />
+                  <Icon v-else icon="line-md:moon-to-sunny-outline-transition" class="dock-theme-icon" />
                 </div>
               </Transition>
             </button>
@@ -704,11 +1139,21 @@ onUnmounted(() => {
           <button
             class="dock-item dock-edit-button"
             data-layout-edit-control
-            :class="{ active: isLayoutEditing }"
+            :class="{
+              'active': isLayoutEditing,
+              'dock-icon-click-rebound': clickReboundTarget === EDIT_DOCK_TARGET,
+              'dock-icon-click-suppressed': clickSuppressedTarget === EDIT_DOCK_TARGET,
+            }"
             :aria-pressed="isLayoutEditing"
-            @click="toggleLayoutEditMode('dock')"
+            @click="handleDockEditClick"
+            @mouseenter="cancelClickSuppressionRelease(EDIT_DOCK_TARGET)"
+            @mouseleave="scheduleClickSuppressionRelease(EDIT_DOCK_TARGET)"
+            @blur="handleDockIconBlur(EDIT_DOCK_TARGET, $event)"
           >
-            <Icon :icon="isLayoutEditing ? 'mingcute:check-line' : 'mingcute:edit-3-line'" />
+            <Icon
+              :icon="isLayoutEditing ? 'mingcute:check-line' : 'mingcute:edit-3-line'"
+              class="dock-edit-icon"
+            />
           </button>
         </Tooltip>
       </div>
@@ -722,6 +1167,7 @@ onUnmounted(() => {
           v-for="action in dockEditActions"
           :key="action.key"
           class="dock-edit-action-item"
+          :class="{ 'dock-edit-action-item--hidden': action.hidden }"
         >
           <button
             type="button"
@@ -729,14 +1175,13 @@ onUnmounted(() => {
             :data-layout-edit-target="`dock-action-${action.key}`"
             data-layout-settings-menu="BewlyComponents"
             data-layout-settings-page="dock"
-            data-layout-settings-title-key="settings.back_to_top_and_refresh_buttons_are_separated"
+            :data-layout-settings-title-key="action.settingsTitleKey"
             :aria-label="action.label"
             :title="action.label"
           >
             <Icon
               :icon="action.icon"
               class="dock-edit-action-item__icon"
-              :class="{ 'dock-edit-action-item__icon--refresh': action.key === 'refresh' }"
               aria-hidden="true"
             />
           </button>
@@ -760,18 +1205,20 @@ onUnmounted(() => {
           <template v-for="key in 2" :key="key">
             <Transition name="fade">
               <button
-                v-if="(key === 1 && canRefreshCurrentPage) || (key === 2 && !reachTop)"
+                v-if="(key === 1 && showRefreshButton) || (key === 2 && backToTopButtonEnabled && !reachTop)"
                 class="back-to-top-or-refresh-btn"
                 :class="{
-                  inactive: hoveringDockItem.themeMode && isDark,
+                  'inactive': hoveringDockItem.themeMode && isDark,
+                  'dock-action-pulse-refresh': key === 1 && dockActionPulse === 'refresh',
+                  'dock-action-pulse-back-to-top': key === 2 && dockActionPulse === 'back-to-top',
                 }"
                 @click="handleBackToTopOrRefresh(key === 1 ? 'refresh' : 'backToTop')"
               >
                 <Icon
                   v-if="key === 1"
-                  icon="line-md:rotate-270"
+                  icon="tabler:reload"
                   class="dock-action-icon"
-                  shrink-0 rotate-90 absolute text="size-$bew-icon-size-lg"
+                  shrink-0 absolute text="size-$bew-icon-size-lg"
                 />
                 <Icon
                   v-else
@@ -785,18 +1232,21 @@ onUnmounted(() => {
         </template>
         <template v-else>
           <button
+            v-if="backToTopButtonEnabled || showRefreshButton"
             class="back-to-top-or-refresh-btn"
             :class="{
-              inactive: hoveringDockItem.themeMode && isDark,
+              'inactive': hoveringDockItem.themeMode && isDark,
+              'dock-action-pulse-refresh': dockActionPulse === 'refresh',
+              'dock-action-pulse-back-to-top': dockActionPulse === 'back-to-top',
             }"
             @click="handleBackToTopOrRefresh('auto')"
           >
             <Transition name="fade">
               <Icon
-                v-if="reachTop && canRefreshCurrentPage"
-                icon="line-md:rotate-270"
+                v-if="(reachTop || !backToTopButtonEnabled) && showRefreshButton"
+                icon="tabler:reload"
                 class="dock-action-icon"
-                shrink-0 rotate-90 absolute text="size-$bew-icon-size-lg"
+                shrink-0 absolute text="size-$bew-icon-size-lg"
               />
               <Icon
                 v-else
@@ -813,7 +1263,8 @@ onUnmounted(() => {
             v-if="showUndoForwardActions"
             class="back-to-top-or-refresh-btn"
             :class="{
-              inactive: hoveringDockItem.themeMode && isDark,
+              'inactive': hoveringDockItem.themeMode && isDark,
+              'dock-action-pulse-history': dockActionPulse === 'history',
             }"
             @click="handleHistoryNavigation"
           >
@@ -845,17 +1296,18 @@ onUnmounted(() => {
     width: 0;
   }
 
+  // 首页滚动条在内部容器中，右侧与底部 Dock 需让出它的槽位；原版页面中该值为 0。
   &--right {
-    inset: 0 0 0 auto;
+    inset: 0 var(--bew-page-scrollbar-gutter, 0px) 0 auto;
     width: 0;
   }
 
   &--bottom {
-    inset: auto 0 0 0;
+    inset: auto var(--bew-page-scrollbar-gutter, 0px) 0 0;
     height: 0;
   }
 
-  > * {
+  > .dock-edge {
     --uno: "pointer-events-auto";
   }
 }
@@ -904,6 +1356,13 @@ onUnmounted(() => {
   --uno: "absolute flex justify-center items-center scale-$scale";
 
   transition-duration: 0ms;
+  // Only the visible pieces should hit-test; the inner margin would otherwise
+  // cover the page scrollbar next to the Dock.
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
 
   &.ready {
     transition-duration: var(--bew-duration-moderate, 300ms);
@@ -933,7 +1392,9 @@ onUnmounted(() => {
   }
 
   &.right {
-    --uno: "right-2 after:left--4px";
+    --uno: "after:left--4px";
+    // 右侧紧邻滚动条时只保留内层外边距，避免与窗口边缘的距离明显大于左侧 Dock。
+    right: max(0px, calc(var(--bew-space-2) - var(--bew-page-scrollbar-size, 0px)));
   }
   &.right.hide:not(.hover) {
     --uno: "opacity-0 !translate-x-100%";
@@ -958,12 +1419,8 @@ onUnmounted(() => {
     --uno: "!opacity-60 !translate-y-50%";
   }
 
-  &.hide-inner:not(.hover) {
+  &.hide-inner:not(.hover) .dock-content-inner {
     pointer-events: none;
-  }
-
-  &.hide-inner:not(.hover) .dock-action-buttons {
-    pointer-events: auto;
   }
 
   .divider {
@@ -1048,15 +1505,15 @@ onUnmounted(() => {
   flex: none;
 }
 
+.dock-edit-action-item--hidden .back-to-top-or-refresh-btn {
+  opacity: 0.45;
+}
+
 .dock-edit-action-item__icon {
   position: absolute;
   width: var(--bew-icon-size-lg);
   height: var(--bew-icon-size-lg);
   flex: none;
-}
-
-.dock-edit-action-item__icon--refresh {
-  transform: rotate(90deg);
 }
 
 .dock-item {
@@ -1107,5 +1564,408 @@ onUnmounted(() => {
   :deep(.bew-local-icon) {
     --uno: "lg:w-22px w-18px lg:h-22px h-18px block align-middle";
   }
+}
+
+// 导航图标的悬停动画：按各自语义播放一次
+.dock-item-icon-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.dock-item-icon {
+  position: relative;
+  z-index: 1;
+}
+
+.dock-svg-icon {
+  display: block;
+  width: 1.2em;
+  height: 1.2em;
+  font-size: calc(var(--bew-base-font-size) * 1.25);
+}
+
+.dock-item:hover .dock-item-icon,
+.dock-item:focus-visible .dock-item-icon {
+  animation-duration: 400ms;
+  animation-timing-function: var(--bew-ease-standard, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+
+.dock-icon-anim-home:hover .dock-item-icon,
+.dock-icon-anim-home:focus-visible .dock-item-icon {
+  animation-name: dock-icon-home;
+  animation-duration: 600ms;
+}
+
+.dock-icon-anim-search:hover .dock-item-icon,
+.dock-icon-anim-search:focus-visible .dock-item-icon {
+  animation-name: dock-icon-search;
+  animation-duration: 650ms;
+}
+
+.dock-icon-anim-anime:hover .dock-anime-wave,
+.dock-icon-anim-anime:focus-visible .dock-anime-wave {
+  animation: dock-anime-wave 800ms var(--bew-ease-out) both;
+}
+
+.dock-icon-anim-anime:hover .dock-anime-wave-2,
+.dock-icon-anim-anime:focus-visible .dock-anime-wave-2 {
+  animation-delay: 120ms;
+}
+
+.dock-icon-anim-anime:hover .dock-anime-eyes,
+.dock-icon-anim-anime:focus-visible .dock-anime-eyes {
+  animation: dock-anime-eyes-blink 600ms var(--bew-ease-out);
+}
+
+.dock-icon-anim-favorites:hover .dock-item-icon,
+.dock-icon-anim-favorites:focus-visible .dock-item-icon {
+  animation-name: dock-icon-favorites;
+  animation-duration: 550ms;
+}
+
+.dock-icon-anim-favorites:hover .dock-favorites-sparkle,
+.dock-icon-anim-favorites:focus-visible .dock-favorites-sparkle {
+  animation: dock-favorites-sparkle 700ms var(--bew-ease-out);
+}
+
+.dock-icon-anim-history:hover .dock-clock-hand,
+.dock-icon-anim-history:focus-visible .dock-clock-hand {
+  animation: dock-icon-history-hand 650ms var(--bew-ease-in-out);
+}
+
+.dock-icon-anim-watch-later:hover .dock-carplay-play,
+.dock-icon-anim-watch-later:focus-visible .dock-carplay-play {
+  animation: dock-icon-watch-later-play 500ms var(--bew-ease-emphasized, cubic-bezier(0.34, 1.3, 0.64, 1));
+}
+
+.dock-icon-anim-moments:hover .dock-item-icon,
+.dock-icon-anim-moments:focus-visible .dock-item-icon {
+  animation-name: dock-icon-moments;
+  animation-duration: 650ms;
+  animation-timing-function: var(--bew-ease-in-out);
+}
+
+.dock-item.dock-icon-click-rebound .dock-item-icon,
+.dock-item.dock-icon-click-rebound .dock-theme-icon,
+.dock-edit-button.dock-icon-click-rebound .dock-edit-icon {
+  animation: dock-icon-click-rebound 320ms var(--bew-ease-emphasized, cubic-bezier(0.34, 1.3, 0.64, 1)) !important;
+}
+
+.dock-item.dock-icon-click-suppressed:not(.dock-icon-click-rebound) .dock-item-icon,
+.dock-item.dock-icon-click-suppressed:not(.dock-icon-click-rebound) .dock-theme-icon,
+.dock-edit-button.dock-icon-click-suppressed:not(.dock-icon-click-rebound) .dock-edit-icon {
+  animation-name: none !important;
+}
+
+.dock-item.dock-icon-click-suppressed .dock-anime-eyes,
+.dock-item.dock-icon-click-suppressed .dock-anime-wave,
+.dock-item.dock-icon-click-suppressed .dock-favorites-sparkle,
+.dock-item.dock-icon-click-suppressed .dock-clock-hand,
+.dock-item.dock-icon-click-suppressed .dock-carplay-play {
+  animation-name: none !important;
+}
+
+.dock-anime-signal {
+  position: absolute;
+  inset: -4px;
+  z-index: 2;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.dock-anime-wave {
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 67.4% 22.4%;
+}
+
+.dock-anime-eyes {
+  transform-box: view-box;
+  transform-origin: 50% 52%;
+}
+
+.dock-edit-button:hover .dock-edit-icon,
+.dock-edit-button:focus-visible .dock-edit-icon {
+  animation: dock-edit-icon-wiggle 520ms var(--bew-ease-standard, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+
+.back-to-top-or-refresh-btn.dock-action-pulse-refresh .dock-action-icon {
+  animation: dock-action-refresh 600ms var(--bew-ease-in-out);
+}
+
+.back-to-top-or-refresh-btn.dock-action-pulse-back-to-top .dock-action-icon {
+  animation: dock-action-back-to-top 450ms var(--bew-ease-out);
+}
+
+.back-to-top-or-refresh-btn.dock-action-pulse-history .dock-action-icon {
+  animation: dock-action-history 520ms var(--bew-ease-emphasized, cubic-bezier(0.34, 1.3, 0.64, 1));
+}
+
+.dock-favorites-sparkle {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  z-index: 2;
+  width: 7px;
+  height: 7px;
+  background-color: currentColor;
+  clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
+  opacity: 0;
+  transform: scale(0) rotate(0deg);
+  transform-origin: center;
+}
+
+.dock-clock-hand,
+.dock-carplay-play {
+  transform-box: view-box;
+}
+
+.dock-clock-hand {
+  transform-origin: 50% 50%;
+}
+
+.dock-carplay-play {
+  transform-origin: 54% 50%;
+}
+
+@keyframes dock-icon-home {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  18% {
+    transform: translateY(1.5px) scale(1.06, 0.92);
+  }
+  48% {
+    transform: translateY(-5px) scale(0.96, 1.04);
+  }
+  68% {
+    transform: translateY(1.5px) scale(1.05, 0.95);
+  }
+  84% {
+    transform: translateY(-1.5px) scale(0.99, 1.01);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+@keyframes dock-icon-search {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  20% {
+    transform: translate(-2.5px, 1.5px) rotate(-10deg);
+  }
+  45% {
+    transform: translate(2.5px, -1.5px) rotate(6deg);
+  }
+  70% {
+    transform: translate(3px, 1px) rotate(8deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+@keyframes dock-icon-favorites {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  30% {
+    transform: scale(1.2) rotate(10deg);
+  }
+  62% {
+    transform: scale(0.96) rotate(-5deg);
+  }
+}
+
+@keyframes dock-favorites-sparkle {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.1) rotate(45deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1) rotate(65deg);
+  }
+  80% {
+    opacity: 0.8;
+    transform: scale(0.8) rotate(80deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(90deg);
+  }
+}
+
+@keyframes dock-anime-wave {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes dock-anime-eyes-blink {
+  0%,
+  55%,
+  70%,
+  100% {
+    transform: scaleY(1);
+  }
+  62% {
+    transform: scaleY(0.12);
+  }
+}
+
+@keyframes dock-icon-history-hand {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes dock-icon-watch-later-play {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.22);
+  }
+  70% {
+    transform: scale(0.96);
+  }
+}
+
+@keyframes dock-icon-click-rebound {
+  0% {
+    transform: var(--dock-click-rebound-from, scale(1));
+  }
+  35% {
+    transform: scale(0.9);
+  }
+  70% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes dock-icon-moments {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dock-edit-icon-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  22% {
+    transform: rotate(-10deg);
+  }
+  48% {
+    transform: rotate(8deg);
+  }
+  72% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes dock-action-refresh {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dock-action-back-to-top {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-4px);
+  }
+  65% {
+    transform: translateY(1px);
+  }
+}
+
+@keyframes dock-action-history {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  30% {
+    transform: scale(0.85) rotate(-20deg);
+  }
+  65% {
+    transform: scale(1.08) rotate(6deg);
+  }
+}
+
+// 悬停/聚焦时的图标动画：设置项与系统「减少动效」共用同一份开关列表
+@mixin dock-icon-hover-animation-off {
+  .dock-item:hover .dock-item-icon,
+  .dock-item:focus-visible .dock-item-icon,
+  .dock-item:hover .dock-clock-hand,
+  .dock-item:focus-visible .dock-clock-hand,
+  .dock-item:hover .dock-carplay-play,
+  .dock-item:focus-visible .dock-carplay-play,
+  .dock-item:hover .dock-anime-wave,
+  .dock-item:focus-visible .dock-anime-wave,
+  .dock-item:hover .dock-anime-eyes,
+  .dock-item:focus-visible .dock-anime-eyes,
+  .dock-item:hover .dock-favorites-sparkle,
+  .dock-item:focus-visible .dock-favorites-sparkle,
+  .dock-edit-button:hover .dock-edit-icon,
+  .dock-edit-button:focus-visible .dock-edit-icon {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @include dock-icon-hover-animation-off;
+
+  .back-to-top-or-refresh-btn.dock-action-pulse-refresh .dock-action-icon,
+  .back-to-top-or-refresh-btn.dock-action-pulse-back-to-top .dock-action-icon,
+  .back-to-top-or-refresh-btn.dock-action-pulse-history .dock-action-icon,
+  .dock-item.dock-icon-click-rebound .dock-item-icon,
+  .dock-item.dock-icon-click-rebound .dock-theme-icon,
+  .dock-edit-button.dock-icon-click-rebound .dock-edit-icon {
+    animation: none !important;
+  }
+}
+
+// 设置项：只关闭悬停/聚焦动画，点击回弹与操作按钮脉冲保留
+.dock-content.disable-icon-animation {
+  @include dock-icon-hover-animation-off;
 }
 </style>

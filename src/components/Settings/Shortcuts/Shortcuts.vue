@@ -11,7 +11,7 @@ import type {
   ShortcutsSettings,
 } from '~/logic/storage'
 import { formatShortcutKey, getShortcutKeyFromEvent, isSameShortcutKey } from '~/utils/shortcutKeys'
-import { setupShortcutHandlers } from '~/utils/shortcuts'
+import { getEffectiveShortcutSetting, setupShortcutHandlers } from '~/utils/shortcuts'
 
 import SettingsItem from '../components/SettingsItem.vue'
 import SettingsItemGroup from '../components/SettingsItemGroup.vue'
@@ -85,7 +85,6 @@ const configurableShortcutsGroups: ShortcutGroup[] = [
       { id: 'turnOffLight', name: t('settings.shortcuts.turn_off_light'), description: t('settings.shortcuts.turn_off_light_desc'), defaultKey: 'I' },
       { id: 'caption', name: t('settings.shortcuts.caption'), description: t('settings.shortcuts.caption_desc'), defaultKey: 'C' },
       { id: 'videoScreenshot', name: t('settings.shortcuts.video_screenshot'), description: t('settings.shortcuts.video_screenshot_desc'), defaultKey: 'Shift+S' },
-      { id: 'listenVideo', name: t('settings.shortcuts.listen_video'), description: t('settings.shortcuts.listen_video_desc'), defaultKey: 'Shift+M' },
       { id: 'increasePlaybackRate', name: t('settings.shortcuts.increase_playback_rate'), description: t('settings.shortcuts.increase_playback_rate_desc'), defaultKey: '+' },
       { id: 'decreasePlaybackRate', name: t('settings.shortcuts.decrease_playback_rate'), description: t('settings.shortcuts.decrease_playback_rate_desc'), defaultKey: '-' },
       { id: 'resetPlaybackRate', name: t('settings.shortcuts.reset_playback_rate'), description: t('settings.shortcuts.reset_playback_rate_desc'), defaultKey: '0' },
@@ -120,7 +119,7 @@ const vFocusShortcutEditor = {
 
 // --- Helper Functions ---
 function getShortcutSetting(id: ConfigurableShortcutId): BaseShortcutSetting | undefined {
-  return settings.value.shortcuts?.[id]
+  return getEffectiveShortcutSetting(String(id))
 }
 
 function getDefaultShortcutSetting(id: ConfigurableShortcutId): BaseShortcutSetting | undefined {
@@ -139,7 +138,7 @@ function checkShortcutConflict(key: string, currentId: ConfigurableShortcutId): 
       if (shortcut.id === currentId)
         continue
 
-      const shortcutSetting = settings.value.shortcuts[shortcut.id]
+      const shortcutSetting = getShortcutSetting(shortcut.id)
       if (shortcutSetting && typeof shortcutSetting === 'object' && shortcutSetting.key) {
         if (isSameShortcutKey(shortcutSetting.key, key)) {
           return {
@@ -374,7 +373,7 @@ function undoResetAllShortcuts() {
                   </button>
                 </div>
                 <Radio
-                  :model-value="settings.shortcuts[shortcutDef.id]?.enabled ?? false"
+                  :model-value="getShortcutSetting(shortcutDef.id)?.enabled ?? false"
                   @update:model-value="(value) => {
                     if (!settings.shortcuts[shortcutDef.id]) {
                       settings.shortcuts[shortcutDef.id] = { key: shortcutDef.defaultKey, enabled: value }

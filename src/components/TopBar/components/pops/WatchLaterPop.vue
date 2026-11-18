@@ -5,10 +5,12 @@ import Empty from '~/components/Empty.vue'
 import Loading from '~/components/Loading.vue'
 import Progress from '~/components/Progress.vue'
 import { getAuthorJumpUrl } from '~/components/VideoCard/utils'
+import WatchLaterRemovedMask from '~/components/WatchLaterRemovedMask.vue'
 import { useOptimizedScroll } from '~/composables/useOptimizedScroll'
 import { settings } from '~/logic'
 import type { List as WatchLaterItem } from '~/models/video/watchLater'
 import { useTopBarStore } from '~/stores/topBarStore'
+import { localizeBilibiliUrl } from '~/utils/bilibiliLocale'
 import { calcCurrentTime } from '~/utils/dataFormatter'
 import { isActualHomepage, isHomePage, isInIframe, removeHttpFromUrl } from '~/utils/main'
 import { openLinkInBackground } from '~/utils/tabs'
@@ -25,10 +27,28 @@ const viewAllUrl = computed((): string => {
   return 'https://www.bilibili.com/watchlater/list'
 })
 const playAllUrl = computed((): string => {
-  return 'https://www.bilibili.com/list/watchlater'
+  return localizeBilibiliUrl('https://www.bilibili.com/list/watchlater')
 })
 
 const scrollContainer = ref<HTMLElement>()
+
+/**
+ * 删除遮罩状态：removing 删除中，removed 已删除但保留原位可还原，restoring 还原中；
+ * index 为点击删除时在展示列表中的位置。点击即删除，误删由撤销兜底。
+ */
+type RemoveStatus = 'removing' | 'removed' | 'restoring'
+const removeStatuses = reactive(new Map<number, { item: WatchLaterItem, index: number, status: RemoveStatus }>())
+
+// store 删除后条目会从列表移除，这里按原位置插回以保留卡片
+const displayWatchLaterList = computed(() => {
+  const list = [...watchLaterList.value]
+  const entries = [...removeStatuses.values()].sort((a, b) => a.index - b.index)
+  for (const entry of entries) {
+    if (!list.some(item => item.aid === entry.item.aid))
+      list.splice(Math.min(entry.index, list.length), 0, entry.item)
+  }
+  return list
+})
 
 // 检查是否还有更多内容
 const hasMoreContent = computed(() => {
@@ -54,11 +74,11 @@ onMounted(async () => {
 })
 
 function getVideoPageUrl(bvid: string): string {
-  return `https://www.bilibili.com/video/${bvid}/`
+  return localizeBilibiliUrl(`https://www.bilibili.com/video/${bvid}/`)
 }
 
 function getWatchLaterVideoUrl(bvid: string): string {
-  return `https://www.bilibili.com/list/watchlater?bvid=${bvid}`
+  return localizeBilibiliUrl(`https://www.bilibili.com/list/watchlater?bvid=${bvid}`)
 }
 
 function openVideoPage(url: string) {
@@ -91,6 +111,50 @@ function openVideoPage(url: string) {
 
 function deleteWatchLaterItem(index: number, aid: number) {
   topBarStore.deleteWatchLaterItem(index, aid)
+}
+
+// 点击即删除，卡片保留在原位并显示可撤销遮罩
+async function removeWatchLaterItem(item: WatchLaterItem, index: number) {
+  if (removeStatuses.has(item.aid))
+    return
+
+  const entry: { item: WatchLaterItem, index: number, status: RemoveStatus } = { item, index, status: 'removing' }
+  removeStatuses.set(item.aid, entry)
+  const success = await topBarStore.deleteWatchLaterItem(index, item.aid)
+  if (removeStatuses.get(item.aid) !== entry)
+    return
+  if (success)
+    entry.status = 'removed'
+  else
+    removeStatuses.delete(item.aid)
+}
+
+async function restoreWatchLaterItem(aid: number) {
+  const entry = removeStatuses.get(aid)
+  if (!entry || entry.status !== 'removed')
+    return
+
+  entry.status = 'restoring'
+  // 换算为 store 列表下标：只计算排在前面且仍在 store 列表中的条目
+  const storeAids = new Set(watchLaterList.value.map(item => item.aid))
+  const displayIndex = displayWatchLaterList.value.findIndex(item => item.aid === aid)
+  const storeIndex = displayWatchLaterList.value
+    .slice(0, Math.max(0, displayIndex))
+    .filter(item => storeAids.has(item.aid))
+    .length
+  const success = await topBarStore.restoreWatchLaterItem(entry.item, storeIndex)
+  if (removeStatuses.get(aid) !== entry)
+    return
+  if (success)
+    removeStatuses.delete(aid)
+  else
+    entry.status = 'removed'
+}
+
+// 收起已移除的占位卡片：条目已从服务器删除，这里仅移出展示集合，触发 removable-list 离场动画
+function dismissRemovedItem(aid: number) {
+  if (removeStatuses.get(aid)?.status === 'removed')
+    removeStatuses.delete(aid)
 }
 
 /** progress = -1 表示已看完，直接展示总时长；角标文案形如「12:34 / 45:00」。 */
@@ -190,7 +254,7 @@ function handleOpenVideoPageAndRemove(index: number, aid: number, bvid: string) 
 
       <!-- empty -->
       <Empty
-        v-if="!isLoadingWatchLater && watchLaterList.length === 0"
+        v-if="!isLoadingWatchLater && displayWatchLaterList.length === 0"
         w="full" flex-1
         flex="~ items-center"
       />
@@ -198,10 +262,11 @@ function handleOpenVideoPageAndRemove(index: number, aid: number, bvid: string) 
       <!-- watchlater：卡片结构与收藏/动态弹窗视频卡保持一致，特有操作作为封面覆盖层 -->
       <TransitionGroup name="removable-list" tag="div" class="removable-list-group" flex="~ col gap-2">
         <ALink
-          v-for="(item, index) in watchLaterList"
+          v-for="(item, index) in displayWatchLaterList"
           :key="item.aid"
           :href="getWatchLaterVideoUrl(item.bvid)"
           class="group bew-content-card"
+          pos="relative"
           type="topBar"
           block
           m="last:b-4"
@@ -254,7 +319,7 @@ function handleOpenVideoPageAndRemove(index: number, aid: number, bvid: string) 
                   hover-color="error"
                   :tooltip="$t('watch_later.remove_from_watch_later')"
                   :aria-label="$t('watch_later.remove_from_watch_later')"
-                  @click="deleteWatchLaterItem(index, item.aid)"
+                  @click="removeWatchLaterItem(item, index)"
                 >
                   <i i-mingcute:close-line aria-hidden="true" />
                 </PopCoverIconButton>
@@ -280,6 +345,15 @@ function handleOpenVideoPageAndRemove(index: number, aid: number, bvid: string) 
               <Progress :percentage="getProgressPercentage(item)" />
             </template>
           </PopMediaCard>
+
+          <!-- 删除遮罩：拦截链接点击，删除后可撤销；右上角 × 可收起占位卡片 -->
+          <WatchLaterRemovedMask
+            v-if="removeStatuses.has(item.aid)"
+            :message="$t('watch_later.removed')"
+            :pending="removeStatuses.get(item.aid)?.status !== 'removed'"
+            @undo="restoreWatchLaterItem(item.aid)"
+            @dismiss="dismissRemovedItem(item.aid)"
+          />
         </ALink>
       </TransitionGroup>
 
@@ -290,7 +364,7 @@ function handleOpenVideoPageAndRemove(index: number, aid: number, bvid: string) 
 
       <!-- no more content -->
       <div
-        v-if="!isLoadingWatchLater && !hasMoreContent && watchLaterList.length > 0"
+        v-if="!isLoadingWatchLater && !hasMoreContent && displayWatchLaterList.length > 0"
         text="$bew-text-3 xs center"
         p="y-4"
       >

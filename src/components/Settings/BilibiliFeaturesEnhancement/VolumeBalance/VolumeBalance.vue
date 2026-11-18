@@ -24,8 +24,13 @@ const { t } = useI18n()
         <Slider v-model="settings.localLoudnessStrength" :min="40" :max="100" :label="`${settings.localLoudnessStrength}%`" />
       </SettingsItem>
     </template>
-    <SettingsItem :title="t('settings.local_loudness.show_button')" :desc="t('settings.local_loudness.show_button_desc')" right-width="auto">
-      <Radio v-model="settings.showLocalLoudnessButton" />
+  </SettingsItemGroup>
+  <SettingsItemGroup :title="t('settings.player_adjustment.title')" :desc="t('settings.player_adjustment.desc')">
+    <SettingsItem :title="t('settings.player_adjustment.show_picture')" :desc="t('settings.player_adjustment.show_picture_desc')" right-width="auto">
+      <Radio v-model="settings.playerPictureAdjustmentEnabled" />
+    </SettingsItem>
+    <SettingsItem :title="t('settings.player_adjustment.show_audio_delay')" :desc="t('settings.player_adjustment.show_audio_delay_desc')" right-width="auto">
+      <Radio v-model="settings.playerAudioDelayEnabled" />
     </SettingsItem>
   </SettingsItemGroup>
 </template>

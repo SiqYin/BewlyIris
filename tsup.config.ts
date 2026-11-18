@@ -10,7 +10,7 @@ const outDir = isFirefox ? 'extension-firefox/dist' : isSafari ? 'extension-safa
 
 export default defineConfig(() => ({
   entry: {
-    'contentScripts/listenVideoControl': './src/contentScripts/listenVideoControl.ts',
+    'contentScripts/flvPlayer': './src/contentScripts/flvPlayer.ts',
     'background/index': './src/background/index.ts',
     'contentScripts/pageLoading': './src/contentScripts/pageLoading.ts',
   },
@@ -20,10 +20,12 @@ export default defineConfig(() => ({
   outDir,
   format: ['esm'],
   target: 'esnext',
-  ignoreWatch: ['**/extension/**', '**/extension-firefox/**', '**/extension-safari/**'],
+  // auto-imports.d.ts 会在每次 Vite 构建时重写，类型声明不影响后台脚本产物。
+  ignoreWatch: ['**/extension/**', '**/extension-firefox/**', '**/extension-safari/**', '**/*.d.ts'],
   splitting: false,
   loader: { '.css': 'text' },
-  noExternal: ['md5'],
+  // Stream players are loaded by content scripts and must be self-contained.
+  noExternal: ['md5', 'flv.js'],
   esbuildPlugins: [thirdPartyLicensesEsbuildPlugin('background')],
   sourcemap: false, // https://github.com/vitejs/vite-plugin-vue/issues/35
   define: {

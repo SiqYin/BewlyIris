@@ -1,5 +1,5 @@
-import { toggleListenVideo } from '~/contentScripts/listenVideoFeature'
 import { settings } from '~/logic'
+import type { BaseShortcutSetting } from '~/logic/storage'
 import { applyBewlyWidescreen, exitBewlyWidescreen, isBewlyWidescreenActive, isBewlyWidescreenEngaged } from '~/utils/bewlyWidescreen'
 import { isVideoOrBangumiPage, isVideoPlaybackPage } from '~/utils/main'
 // 导入需要的函数
@@ -81,6 +81,22 @@ export function getShortcutHandler(id: string): ShortcutHandler | undefined {
   return shortcutHandlers[id]
 }
 
+// 放大视频旧默认为 Shift++ 并启用，现已默认未绑定。按新格式 Shift++ 等同 +，会在关闭倍速快捷键后抢占 + 键。
+// 新录制不会产生 Shift++，仍是该值即为未改动的旧默认，运行时按未绑定处理，不改写用户设置。
+const LEGACY_DEFAULT_SHORTCUT_KEYS: Record<string, string> = {
+  increaseVideoSize: 'Shift++',
+}
+
+/**
+ * 实际生效的快捷键配置；未改动的旧默认绑定视为未绑定。
+ */
+export function getEffectiveShortcutSetting(id: string): BaseShortcutSetting | undefined {
+  const shortcutConfig = settings.value.shortcuts?.[id]
+  if (shortcutConfig && LEGACY_DEFAULT_SHORTCUT_KEYS[id] === shortcutConfig.key)
+    return { key: '', enabled: false }
+  return shortcutConfig
+}
+
 // 缓存快捷键配置：标准化后的按键 -> 快捷键 ID，配置靠前的快捷键优先
 let cachedShortcutIds: Map<string, string> | null = null
 let lastSettingsUpdate = 0
@@ -94,7 +110,8 @@ function updateShortcutsCache(force = false) {
 
   lastSettingsUpdate = now
   const shortcutIds = new Map<string, string>()
-  for (const [id, shortcutConfig] of Object.entries(settings.value.shortcuts || {})) {
+  for (const id of Object.keys(settings.value.shortcuts || {})) {
+    const shortcutConfig = getEffectiveShortcutSetting(id)
     if (!shortcutConfig?.enabled || !shortcutConfig.key)
       continue
     const key = normalizeShortcutKey(String(shortcutConfig.key)).toLowerCase()
@@ -102,6 +119,22 @@ function updateShortcutsCache(force = false) {
       shortcutIds.set(key, id)
   }
   cachedShortcutIds = shortcutIds
+}
+
+const fullscreenOnlyShortcutIds = new Set(['increaseVideoSize', 'decreaseVideoSize', 'resetVideoSize'])
+
+function isBrowserFullscreen(): boolean {
+  return !!(document.fullscreenElement
+    || (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement)
+}
+
+function isWebFullscreen(): boolean {
+  const webFullscreenButton = document.querySelector<HTMLElement>('.bpx-player-ctrl-web, .bilibili-player-video-web-fullscreen')
+  return !!webFullscreenButton?.classList.contains('bpx-state-entered')
+}
+
+function isPlayerFullscreen(): boolean {
+  return isBrowserFullscreen() || isWebFullscreen()
 }
 
 function findShortcutId(e: KeyboardEvent): string | null {
@@ -112,12 +145,13 @@ function findShortcutId(e: KeyboardEvent): string | null {
     const id = cachedShortcutIds.get(candidate.toLowerCase())
     if (!id || !shortcutHandlers[id])
       continue
-    // 截图与听视频只在视频播放页响应，避免拦截其他页面或输入法的按键。
-    if ((id === 'videoScreenshot' || id === 'listenVideo')
+    // 截图只在视频播放页响应，避免拦截其他页面或输入法的按键。
+    if (id === 'videoScreenshot'
       && (e.isComposing || !(isVideoPlaybackPage() || isVideoOrBangumiPage()))) {
       continue
     }
-    if (id === 'listenVideo' && !settings.value.enableListenVideo)
+    // 视频尺寸属于全屏模式快捷键，非全屏时不占用按键，避免抢走其他扩展（如倍速插件）的同名按键。
+    if (fullscreenOnlyShortcutIds.has(id) && !isPlayerFullscreen())
       continue
     return id
   }
@@ -125,6 +159,7 @@ function findShortcutId(e: KeyboardEvent): string | null {
 }
 
 function shouldIgnoreShortcutEvent(e: KeyboardEvent): boolean {
+  // 设置浮层打开时不响应快捷键，避免与浮层内的输入冲突。
   if (document.getElementById('bewly')?.classList.contains('settings-open'))
     return true
 
@@ -259,14 +294,8 @@ export function registerDefaultHandlers(): void {
       return
     }
 
-    const isBrowserFullscreen = !!(document.fullscreenElement
-      || (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement)
-    const webFullscreenButton = document.querySelector<HTMLElement>('.bpx-player-ctrl-web, .bilibili-player-video-web-fullscreen')
-    if (!isVideoOrBangumiPage()
-      || isBrowserFullscreen
-      || webFullscreenButton?.classList.contains('bpx-state-entered')) {
+    if (!isVideoOrBangumiPage() || isPlayerFullscreen())
       return
-    }
 
     applyBewlyWidescreen(settings.value.bewlyWidescreenSidebarPosition || 'right')
   })
@@ -317,14 +346,6 @@ export function registerDefaultHandlers(): void {
       return
 
     void captureVideoScreenshot()
-  })
-
-  // 听视频模式独立于控制栏按钮开关，长按时不重复切换。
-  registerShortcutHandler('listenVideo', (event) => {
-    if (event.repeat)
-      return
-
-    void toggleListenVideo()
   })
 
   // 增加播放速度

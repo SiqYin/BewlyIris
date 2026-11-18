@@ -5,6 +5,7 @@ import { useToast } from 'vue-toastification'
 
 import AppAuthorizationDialog from '~/components/AppAuthorizationDialog.vue'
 import VideoCardGrid from '~/components/VideoCardGrid.vue'
+import { createApiErrorToastContent } from '~/composables/useApiErrorDetails'
 import { UndoForwardState, useBewlyApp } from '~/composables/useAppProvider'
 import { FilterType, useFilter } from '~/composables/useFilter'
 import { useHomeTabState } from '~/composables/useHomeTabState'
@@ -17,12 +18,21 @@ import type { forYouResult, Item as VideoItem } from '~/models/video/forYou'
 import type { AppVideoElement, VideoCardDisplayData, VideoElement } from '~/stores/forYouStore'
 import { useForYouStore } from '~/stores/forYouStore'
 import api from '~/utils/api'
+import type { ApiErrorReportSource } from '~/utils/apiDiagnostics'
+import { recordPageApiFailure } from '~/utils/apiDiagnostics'
+import { getRecommendationFilterDiagnostics, getRecommendationSettingsDiagnostics } from '~/utils/apiDiagnosticSettings'
 import { ensureFreshAppAccessToken, requestAppClient } from '~/utils/authProvider'
 import { isBilibiliRiskControl } from '~/utils/bilibiliApiError'
 import { av2bv } from '~/utils/bvid'
 import { decodeHtmlEntities } from '~/utils/htmlDecode'
-import { getCookie } from '~/utils/main'
+import { getCookie, jumpScrollTo } from '~/utils/main'
+import type { RequestFailure } from '~/utils/requestFailure'
+import { classifyRequestFailure, getRequestFailure, pickRequestFailure, RequestFailureError } from '~/utils/requestFailure'
 import { isVerticalVideo } from '~/utils/uriParse'
+
+import { isWithinHomeContentStart } from '../homeScroll'
+import ImmersiveFeed from './ImmersiveFeed/ImmersiveFeed.vue'
+import type { ImmersiveFeedItem } from './ImmersiveFeed/types'
 
 const { gridLayout } = defineProps<{
   gridLayout: GridLayoutType
@@ -88,6 +98,10 @@ const videoList = tabState.ref<VideoElement[]>('videoList', [])
 const appVideoList = tabState.ref<AppVideoElement[]>('appVideoList', [])
 
 const isWebRecommendationMode = computed(() => settings.value.recommendationMode !== 'app')
+// App 推荐的单列 / 双列返回不同卡片，切换任一都需要重新加载推荐流
+const recommendationFeedKey = computed(() => settings.value.recommendationMode === 'app'
+  ? `app:${settings.value.appRecommendationColumn}`
+  : settings.value.recommendationMode)
 let requestVersion = 0
 type WebRecommendRequestType = 'refresh' | 'loadMore'
 type WebRecommendationIdentity = 'web' | 'webNoCookie'
@@ -152,8 +166,30 @@ const currentVideoList = computed(() =>
   isWebRecommendationMode.value ? videoList.value : appVideoList.value,
 )
 
+// 沉浸式模式直接消费当前推荐流：只保留普通视频卡片，番剧等无法用 MP4 取流的卡片跳过
+const isImmersiveModeOpen = ref<boolean>(false)
+const immersiveInitialKey = ref<string>()
+const forYouRootRef = ref<HTMLElement | null>(null)
+const immersiveItems = computed<ImmersiveFeedItem[]>(() => {
+  const seen = new Set<string>()
+  const items: ImmersiveFeedItem[] = []
+  for (const element of currentVideoList.value) {
+    const video = element.displayData
+    if (!video || video.goto !== 'av' || seen.has(element.uniqueId))
+      continue
+    const bvid = video.bvid || (video.id > 0 ? av2bv(video.id) : '')
+    if (!bvid)
+      continue
+    seen.add(element.uniqueId)
+    items.push({ key: element.uniqueId, video: bvid === video.bvid ? video : { ...video, bvid } })
+  }
+  return items
+})
+
 const isLoading = ref<boolean>(true)
 const requestFailed = tabState.ref<boolean>('requestFailed', false)
+// 最近一次推荐请求失败的原因，用于在提示和失败状态中说明具体情况
+const lastRecommendFailure = tabState.ref<RequestFailure | null>('lastRecommendFailure', null)
 const needToLoginFirst = tabState.ref<boolean>('needToLoginFirst', false)
 const refreshIdx = tabState.ref<number>('refreshIdx', 1)
 const noMoreContent = tabState.ref<boolean>('noMoreContent', false)
@@ -210,7 +246,6 @@ const APP_RECENT_SHOWN_MAX_KEYS = 600
 const APP_FEED_PARAMS = {
   build: 8430300,
   channel: 'master',
-  column: 2,
   device: 'phone',
   device_name: 'android',
   device_type: 0,
@@ -318,6 +353,80 @@ const recommendationFilterSettingsSignature = computed(() => JSON.stringify([
   settings.value.filterByTitle.map(item => item.keyword),
   settings.value.filterByUser.map(item => item.keyword),
 ]))
+
+const errorReportSource: ApiErrorReportSource = {
+  scene: '个性推荐',
+  queries: ['getRecommendVideos', 'getNoCookieRecommendVideos', 'feedIndex'],
+  getContext: () => ({
+    推荐设置: getRecommendationSettingsDiagnostics(),
+    过滤设置: {
+      ...getRecommendationFilterDiagnostics(),
+      当前模式有生效的过滤: hasActiveRecommendationFilter.value,
+    },
+    推荐流状态: {
+      已加载视频: currentVideoList.value.length,
+      过滤保留: `${filteredFeedKeptCount.value} / ${filteredFeedCandidateCount.value}`,
+      因过滤率过高需手动翻页: requiresManualFilteredPaging.value,
+      连续空加载: isWebRecommendationMode.value ? consecutiveEmptyLoads.value : appConsecutiveEmptyLoads.value,
+      连续整批被过滤: consecutiveFullyFilteredLoadCount,
+      风控冷却等级: webRiskCooldownLevel,
+      风控冷却剩余: `${Math.ceil(getWebRiskCooldownRemainingMs() / 1000)} 秒`,
+      最近失败分类: lastRecommendFailure.value?.kind ?? '无',
+    },
+  }),
+}
+
+function createRecommendationFailureToast(message: string) {
+  return createApiErrorToastContent(message, t('common.api_error.details'), errorReportSource)
+}
+
+function formatApiFailureDetail({ code, message }: RequestFailure): string {
+  const codeText = code === undefined ? '' : String(code)
+  if (!message || message === codeText)
+    return codeText || '-'
+  return codeText ? `${codeText} ${message}` : message
+}
+
+/** 失败原因的说明；无法确定原因时返回 undefined，由调用方使用通用提示。 */
+function getRecommendFailureReason(failure: RequestFailure | null | undefined): string | undefined {
+  switch (failure?.kind) {
+    case 'background':
+      return t('home.recommendation_failure_reason.background')
+    case 'offline':
+      return t('home.recommendation_failure_reason.offline')
+    case 'timeout':
+      return t('home.recommendation_failure_reason.timeout')
+    case 'network':
+      return t('home.recommendation_failure_reason.network')
+    case 'http':
+      return t('home.recommendation_failure_reason.http', { status: failure.status ?? '-' })
+    case 'invalidResponse':
+      return t('home.recommendation_failure_reason.invalid_response')
+    case 'api':
+      return t('home.recommendation_failure_reason.api', { detail: formatApiFailureDetail(failure) })
+    case 'empty':
+      return t('home.recommendation_failure_reason.empty')
+    case 'riskControl':
+      return t('home.recommendation_failure_reason.risk_control')
+    default:
+      return undefined
+  }
+}
+
+function getRecommendFailureMessage(failure: RequestFailure | null | undefined, isAppMode: boolean): string {
+  const reason = getRecommendFailureReason(failure)
+  if (isAppMode)
+    return reason ? t('home.app_recommendation_failed', { reason }) : t('home.app_retry_web')
+  return reason ? t('home.recommendation_failed', { reason }) : t('home.recommendations_retry')
+}
+
+// 无法确定原因时沿用通用的失败说明
+const requestFailedDescription = computed(() => {
+  const failure = lastRecommendFailure.value
+  if (!requestFailed.value || !failure || !getRecommendFailureReason(failure))
+    return undefined
+  return getRecommendFailureMessage(failure, !isWebRecommendationMode.value)
+})
 
 function resetFilteredFeedPagingState() {
   filteredFeedCandidateCount.value = 0
@@ -464,6 +573,7 @@ onMounted(() => {
     settings.value.preserveForYouState
     && forYouStore.state.isInitialized
     && forYouStore.state.recommendationMode === settings.value.recommendationMode
+    && (settings.value.recommendationMode !== 'app' || forYouStore.state.appRecommendationColumn === settings.value.appRecommendationColumn)
     && preservedModeHasItems
   ) {
     // 恢复关键状态
@@ -516,12 +626,13 @@ onMounted(() => {
     forwardWebRefreshBrush.value = 0
     forwardWebLoadMoreBrush.value = 1
 
-    // 恢复滚动位置
-    if (savedState.scrollTop) {
+    // 恢复滚动位置。搜索页模式下靠近顶部切回时保持当前位置，但重新挂载首页后
+    // 栏目位置表已清空，store 中保留的较深位置仍需恢复。
+    if (savedState.scrollTop && (!tabState.preserveScrollOnEntry || !isWithinHomeContentStart(savedState.scrollTop))) {
       nextTick(() => {
         const viewport = scrollViewportRef.value
         if (tabState.isCurrent() && viewport)
-          viewport.scrollTop = savedState.scrollTop || 0
+          jumpScrollTo(viewport, savedState.scrollTop || 0)
       })
     }
 
@@ -569,6 +680,7 @@ onBeforeUnmount(() => {
       noMoreContent: noMoreContent.value,
       isInitialized: true,
       recommendationMode: settings.value.recommendationMode,
+      appRecommendationColumn: settings.value.appRecommendationColumn,
       scrollTop, // 保存滚动位置
     }
     forYouStore.saveCompleteState(currentState)
@@ -628,9 +740,24 @@ function transformWebVideo(item: VideoItem): VideoCardDisplayData {
   }
 }
 
-function getAppRcmdReasonText(item: AppVideoItem): string | undefined {
+// 推荐理由可能以「|」组合多项，如「1万点赞 | 竖屏」
+function getAppRcmdReasons(item: AppVideoItem): string[] {
   const reason = item.rcmd_reason
-  return (typeof reason === 'string' ? reason : reason?.content)?.trim() || undefined
+  const text = typeof reason === 'string' ? reason : reason?.content
+  return text?.split('|').map(part => part.trim()).filter(Boolean) ?? []
+}
+
+const APP_CHANNEL_REASON_PREFIX = '频道:'
+
+function getAppChannelNames(item: AppVideoItem): string[] {
+  const reasons = item.three_point_v2?.find(option => option.type === ThreePointV2Type.Dislike)?.reasons ?? []
+  return reasons.flatMap(({ name }) =>
+    name?.startsWith(APP_CHANNEL_REASON_PREFIX) ? [name.slice(APP_CHANNEL_REASON_PREFIX.length).trim()] : [],
+  ).filter(Boolean)
+}
+
+function isAppVerticalVideo(item: AppVideoItem): boolean {
+  return getAppRcmdReasons(item).includes('竖屏') || (!!item.uri && isVerticalVideo(item.uri))
 }
 
 function getAppBangumiUrl(uri?: string): string {
@@ -653,7 +780,7 @@ function getAppBangumiUrl(uri?: string): string {
 function normalizeAppVideoItem(item: AppVideoItem): AppVideoItem {
   const paramAid = item.card_goto === 'av' ? Number(item.param) : 0
   const aid = item.player_args?.aid || item.args?.aid || (Number.isSafeInteger(paramAid) && paramAid > 0 ? paramAid : undefined)
-  const rcmdReason = getAppRcmdReasonText(item)
+  const followedReason = getAppRcmdReasons(item).find(reason => APP_FOLLOWED_REASONS.has(reason))
 
   return {
     ...item,
@@ -664,8 +791,8 @@ function normalizeAppVideoItem(item: AppVideoItem): AppVideoItem {
       up_id: item.args?.up_id || item.mask?.avatar?.up_id,
       up_name: item.args?.up_name || item.mask?.avatar?.text || item.desc_button?.text,
     },
-    bottom_rcmd_reason: item.bottom_rcmd_reason
-      || (rcmdReason && APP_FOLLOWED_REASONS.has(rcmdReason) ? rcmdReason : undefined),
+    // 单列接口没有「已关注」推荐理由，改用 is_atten 标记
+    bottom_rcmd_reason: item.bottom_rcmd_reason || followedReason || (item.is_atten ? '已关注' : undefined),
   }
 }
 
@@ -675,21 +802,23 @@ function transformAppVideo(item: AppVideoItem): VideoCardDisplayData {
   const followed = !!bottomReason && APP_FOLLOWED_REASONS.has(bottomReason)
 
   // 预先计算 capsuleText，提取复杂逻辑
-  const descPart = item?.desc?.split('·')?.[1]?.trim()
+  // 单列接口的 desc 为「UP 主 · 发布时间」，联合投稿时 multiply_desc.extra 为「等N人联合创作 · 发布时间」
+  const descPart = (item.multiply_desc?.extra || item.desc)?.split('·')?.[1]?.trim()
   const capsuleText = descPart || (followed ? bottomReason : undefined)
 
   // HD 接口的推荐理由（如「1万点赞」）；竖屏已有类型图标，关注状态已由 followed 体现
-  const rcmdReason = getAppRcmdReasonText(item)
-  const tag = rcmdReason && rcmdReason !== '竖屏' && !APP_FOLLOWED_REASONS.has(rcmdReason)
-    ? rcmdReason
-    : undefined
+  // 之后追加「我不想看」中的频道名（如「频道:二次元」），作为视频所属频道标签显示
+  const tags = [...new Set([
+    ...getAppRcmdReasons(item).filter(reason => reason !== '竖屏' && !APP_FOLLOWED_REASONS.has(reason)),
+    ...getAppChannelNames(item),
+  ])].map(reason => decodeHtmlEntities(reason))
 
   // 预先计算 type，避免在模板中调用函数
   let type: 'horizontal' | 'vertical' | 'bangumi' = 'horizontal'
   if (item.card_goto === 'bangumi') {
     type = 'bangumi'
   }
-  else if (item.uri && isVerticalVideo(item.uri)) {
+  else if (isAppVerticalVideo(item)) {
     type = 'vertical'
   }
 
@@ -702,18 +831,19 @@ function transformAppVideo(item: AppVideoItem): VideoCardDisplayData {
     cover: item.cover || '',
     author: {
       name: decodeHtmlEntities(item.args?.up_name || ''),
-      // HD 接口不返回头像，留空时卡片隐藏头像
+      // 单列接口在 avatar 中返回头像，双列接口不返回，留空时卡片隐藏头像
       authorFace: item?.mask?.avatar?.cover || item?.avatar?.cover || '',
       followed,
       mid: item.args?.up_id || 0,
     },
     // App 推荐的 rname 为分区名，tname 为话题标签
     category: decodeHtmlEntities(item.args?.rname) || undefined,
-    tag: decodeHtmlEntities(tag),
+    tag: tags.length > 0 ? tags : undefined,
     capsuleText: decodeHtmlEntities(capsuleText),
     bvid: item.bvid || '',
     viewStr: item.cover_left_text_1,
     danmakuStr: item.cover_left_text_2,
+    like: item.like_button?.count,
     cid: item?.player_args?.cid,
     // 与 PiliPlus 一致，不感兴趣接口的 goto 取 card_goto
     goto: item.card_goto,
@@ -984,7 +1114,7 @@ function notifyWebRiskCooldown() {
 
   webRiskCooldownToastKey = webRiskCooldownUntil.value
   const remainingSeconds = Math.max(1, Math.ceil(getWebRiskCooldownRemainingMs() / 1000))
-  toast.error(t('home.risk_control_paused', { seconds: remainingSeconds }))
+  toast.error(createRecommendationFailureToast(t('home.risk_control_paused', { seconds: remainingSeconds })))
 }
 
 function stopWebRecommendationForRisk() {
@@ -994,7 +1124,7 @@ function stopWebRecommendationForRisk() {
   notifyWebRiskCooldown()
 }
 
-watch(() => settings.value.recommendationMode, () => {
+watch(recommendationFeedKey, () => {
   if (!tabState.isCurrent())
     return
   requestVersion++
@@ -1066,6 +1196,7 @@ async function initData() {
   consecutiveEmptyLoads.value = 0 // 重置空加载计数器
   appConsecutiveEmptyLoads.value = 0 // 重置APP模式空加载计数器
   requestFailed.value = false // 重置请求失败状态
+  lastRecommendFailure.value = null
   needToLoginFirst.value = false
   try {
     await getData('refresh')
@@ -1089,6 +1220,7 @@ async function getData(webRequestType: WebRecommendRequestType = 'refresh') {
   emit('beforeLoading')
   isLoading.value = true
   requestFailed.value = false
+  lastRecommendFailure.value = null
 
   try {
     if (isWebRecommendationMode.value) {
@@ -1106,14 +1238,17 @@ async function getData(webRequestType: WebRecommendRequestType = 'refresh') {
 
         // 检查是否启用自动切换
         if (settings.value.autoSwitchRecommendationMode) {
-          // 切换到 web 模式并提示用户
+          // 切换到 web 模式并提示用户；Web 模式若同样失败会给出自己的原因说明。
           settings.value.recommendationMode = 'web'
-          toast.warning(t('home.app_fallback_web'))
+          // 回退成功后页面没有失败状态，这条提示是查看详情的唯一入口，需要留足点击时间。
+          toast.warning(createRecommendationFailureToast(t('home.app_fallback_web')), { timeout: 10_000 })
         }
         else {
+          const failure = getRequestFailure(error)
+          lastRecommendFailure.value = failure
           requestFailed.value = true
           noMoreContent.value = true
-          toast.error(t('home.app_retry_web'))
+          toast.error(createRecommendationFailureToast(getRecommendFailureMessage(failure, true)))
         }
       }
     }
@@ -1412,6 +1547,7 @@ async function getRecommendVideos(version = requestVersion, requestType: WebReco
     let response: forYouResult | undefined
     let successfulIdentity: WebRecommendationIdentity | undefined
     let hadRiskControlFailure = false
+    let requestFailure: RequestFailure | undefined
 
     for (const [identityIndex, identity] of requestIdentities.entries()) {
       const phase = identityIndex === 0 ? 'primary' : 'fallback'
@@ -1431,6 +1567,7 @@ async function getRecommendVideos(version = requestVersion, requestType: WebReco
         }
         catch (error) {
           hadRiskControlFailure ||= isBilibiliRiskControl(error)
+          requestFailure = pickRequestFailure(requestFailure, classifyRequestFailure({ error }))
           logRecommendRequestFailure(requestLog, {
             ...getRecommendErrorLogDetails(error),
             phase,
@@ -1458,6 +1595,17 @@ async function getRecommendVideos(version = requestVersion, requestType: WebReco
           const isSuspiciousEmptyResponse = response.code === 0
             && (!response.data || !Array.isArray(response.data.item) || response.data.item.length === 0)
           hadRiskControlFailure ||= isRiskResponse || isSuspiciousEmptyResponse
+          requestFailure = pickRequestFailure(requestFailure, classifyRequestFailure({ response }))
+          // code=0 的空列表后台不视为失败；带风控标记的响应后台已经记录。
+          if (isSuspiciousEmptyResponse && !isRiskResponse) {
+            recordPageApiFailure({
+              query: identity === 'webNoCookie' ? 'getNoCookieRecommendVideos' : 'getRecommendVideos',
+              message: '推荐接口返回 code=0 但列表为空',
+              params: requestOptions,
+              response,
+              likelyRiskControl: true,
+            })
+          }
           logRecommendRequestFailure(requestLog, {
             code: response.code,
             message: response.message,
@@ -1498,17 +1646,23 @@ async function getRecommendVideos(version = requestVersion, requestType: WebReco
 
       requestFailed.value = true
       noMoreContent.value = true
-      if (hadRiskControlFailure) {
+      // 后台断开、断网时请求根本没有到达 B 站，即使另一次尝试像风控也不进入风控冷却。
+      const isLocalFailure = requestFailure?.kind === 'background' || requestFailure?.kind === 'offline'
+      if (hadRiskControlFailure && !isLocalFailure) {
+        // 风控冷却有单独的提示
+        lastRecommendFailure.value = null
         stopWebRecommendationForRisk()
       }
       else {
-        toast.error(t('home.recommendations_retry'))
+        lastRecommendFailure.value = requestFailure ?? null
+        toast.error(createRecommendationFailureToast(getRecommendFailureMessage(requestFailure, false)))
       }
       return
     }
 
     resetWebRiskRecoveryState()
     requestFailed.value = false
+    lastRecommendFailure.value = null
     noMoreContent.value = false
 
     if (response.code === 0) {
@@ -1741,12 +1895,14 @@ async function getAppRecommendVideos(
       const retryDeadline = Date.now() + APP_REQUEST_RETRY_WINDOW_MS
       let requestLog: RecommendRequestLogContext | undefined
       let response: AppForYouResult | undefined
+      let requestFailure: RequestFailure | undefined
 
       for (let attempt = 1; attempt <= APP_REQUEST_MAX_ATTEMPTS; attempt++) {
         requestLog = createRecommendRequestLogContext(recommendationMode, requestType)
         try {
           response = await requestAppClient('feedIndex', {
             ...APP_FEED_PARAMS,
+            column: settings.value.appRecommendationColumn === 'double' ? 2 : 1,
             access_key: appAuthTokens.value.accessToken,
             c_locale: locale,
             s_locale: locale,
@@ -1755,6 +1911,7 @@ async function getAppRecommendVideos(
           })
         }
         catch (error) {
+          requestFailure = pickRequestFailure(requestFailure, classifyRequestFailure({ error }, 'items'))
           logRecommendRequestFailure(requestLog, { error, attempt })
           response = undefined
         }
@@ -1771,6 +1928,15 @@ async function getAppRecommendVideos(
           break
 
         if (response) {
+          requestFailure = pickRequestFailure(requestFailure, classifyRequestFailure({ response }, 'items'))
+          if (response.code === 0) {
+            recordPageApiFailure({
+              query: 'feedIndex',
+              message: 'App 推荐接口返回 code=0 但列表为空',
+              params: { idx, column: settings.value.appRecommendationColumn },
+              response,
+            })
+          }
           logRecommendRequestFailure(requestLog, {
             code: response.code,
             message: response.message,
@@ -1795,10 +1961,10 @@ async function getAppRecommendVideos(
         return
 
       if (!response || !requestLog)
-        throw new Error('App 推荐接口连续请求失败')
+        throw new RequestFailureError('App 推荐接口连续请求失败', requestFailure ?? { kind: 'unknown' })
 
       if (response.code === 0 && (!response.data || !Array.isArray(response.data.items) || response.data.items.length === 0))
-        throw new Error('App 推荐接口连续返回空数据')
+        throw new RequestFailureError('App 推荐接口连续返回空数据', requestFailure ?? { kind: 'empty' })
 
       if (response.code === 0) {
         // 无论本批是否有可展示的卡片，都推进游标，下次请求下一页
@@ -1817,7 +1983,9 @@ async function getAppRecommendVideos(
           videoKeys.forEach(key => seenCandidateIds.add(key))
 
           if (activeAppFilter) {
+            // 推荐理由标为「竖屏」但 uri 尺寸未体现竖屏的视频，同样按竖屏视频过滤
             const passesSettingsFilter = activeAppFilter(item)
+              && !(settings.value.filterOutVerticalVideos && isAppVerticalVideo(item))
             filteredBatchCandidateCount++
             if (passesSettingsFilter)
               filteredBatchKeptCount++
@@ -1846,7 +2014,10 @@ async function getAppRecommendVideos(
           code: response.code,
           message: response.message,
         })
-        throw new Error(`App 推荐接口返回错误：${response.code} ${response.message || ''}`.trim())
+        throw new RequestFailureError(
+          `App 推荐接口返回错误：${response.code} ${response.message || ''}`.trim(),
+          requestFailure ?? classifyRequestFailure({ response }, 'items'),
+        )
       }
     }
     catch (error) {
@@ -1917,6 +2088,56 @@ async function getAppRecommendVideos(
   }
 }
 
+// 从视口内第一张可播放的卡片开始，避免重复播放已经滑过的推荐
+function getFirstVisibleImmersiveKey(): string | undefined {
+  const playableKeys = new Set(immersiveItems.value.map(item => item.key))
+  const viewportHeight = window.innerHeight
+  const slots = Array.from(forYouRootRef.value?.querySelectorAll<HTMLElement>('.video-card-slot[data-index]') ?? [])
+  const visibleIndexes = slots
+    .filter((slot) => {
+      const rect = slot.getBoundingClientRect()
+      return rect.bottom > 0 && rect.top < viewportHeight
+    })
+    .map(slot => Number(slot.dataset.index))
+    .filter(Number.isInteger)
+  if (!visibleIndexes.length)
+    return undefined
+
+  const list = currentVideoList.value
+  for (let index = Math.min(...visibleIndexes); index < list.length; index++) {
+    const key = list[index]?.uniqueId
+    if (key && playableKeys.has(key))
+      return key
+  }
+  return undefined
+}
+
+function openImmersiveMode() {
+  if (isImmersiveModeOpen.value)
+    return
+  immersiveInitialKey.value = getFirstVisibleImmersiveKey()
+  isImmersiveModeOpen.value = true
+  if (!hasInitializedData.value && !isLoading.value)
+    void initData()
+}
+
+function closeImmersiveMode() {
+  isImmersiveModeOpen.value = false
+}
+
+function handleImmersiveLoadMore() {
+  // 沉浸式由用户逐条切换驱动，等同手动加载，不受过滤分页与可见性限制
+  loadMore(true)
+}
+
+function handleImmersivePlay(key: string) {
+  const element = currentVideoList.value.find(item => item.uniqueId === key)
+  if (!element)
+    return
+  markWebRecommendationExposed(element)
+  recordWebRecommendationClick(element)
+}
+
 function jumpToLoginPage() {
   location.href = 'https://passport.bilibili.com/login'
 }
@@ -1924,6 +2145,7 @@ function jumpToLoginPage() {
 // 修改 defineExpose，暴露重置方法和撤销方法
 defineExpose({
   initData,
+  openImmersiveMode,
   undoRefresh: () => {
     handleUndoRefresh.value?.()
   },
@@ -1945,10 +2167,18 @@ defineExpose({
     return false
   },
 })
+
+function getItemDisplayData(item: VideoElement | AppVideoElement) {
+  return item.displayData
+}
+
+function getItemKey(item: VideoElement | AppVideoElement) {
+  return item.uniqueId
+}
 </script>
 
 <template>
-  <div>
+  <div ref="forYouRootRef">
     <VideoCardGrid
       v-if="!needToLoginFirst"
       :items="currentVideoList"
@@ -1957,8 +2187,10 @@ defineExpose({
       :no-more-content="noMoreContent"
       :need-to-login-first="needToLoginFirst"
       :request-failed="requestFailed"
-      :transform-item="(item: VideoElement | AppVideoElement) => item.displayData"
-      :get-item-key="(item: VideoElement | AppVideoElement, index?: number) => `${item.uniqueId}-${index ?? 0}`"
+      :request-failed-description="requestFailedDescription"
+      :error-report-source="errorReportSource"
+      :transform-item="getItemDisplayData"
+      :get-item-key="getItemKey"
       :video-type="isWebRecommendationMode ? 'rcmd' : 'appRcmd'"
       :card-exposure-handler="markWebRecommendationExposed"
       :card-click-observer="recordWebRecommendationClick"
@@ -1997,6 +2229,17 @@ defineExpose({
     <AppAuthorizationDialog
       v-if="showAppAuthorizationDialog"
       @close="showAppAuthorizationDialog = false"
+    />
+
+    <ImmersiveFeed
+      v-if="isImmersiveModeOpen"
+      :items="immersiveItems"
+      :initial-key="immersiveInitialKey"
+      :loading="isLoading"
+      :no-more-content="noMoreContent"
+      @close="closeImmersiveMode"
+      @load-more="handleImmersiveLoadMore"
+      @play="handleImmersivePlay"
     />
   </div>
 </template>

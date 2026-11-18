@@ -47,7 +47,7 @@ const statusText = computed(() => {
     return t('common.loading')
   if (status.value === 'idle')
     return ''
-  return t(`settings.wanted_users.${status.value}`)
+  return t(`settings.up_picker.${status.value}`)
 })
 
 const runSearch = useDebounceFn(search, SEARCH_DEBOUNCE)
@@ -77,8 +77,14 @@ function avatarUrl(url = '') {
 }
 
 function stripSearchHighlight(value: unknown) {
-  // 移除高亮标签后再清掉残留尖括号，避免嵌套标签拼接出新的标签
-  return String(value || '').replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim()
+  // 反复移除高亮标签直到不再变化，再清掉残留尖括号，避免嵌套标签拼接出新的标签
+  let text = String(value || '')
+  let previous: string
+  do {
+    previous = text
+    text = text.replace(/<[^>]*>/g, '')
+  } while (text !== previous)
+  return text.replace(/[<>]/g, '').trim()
 }
 
 function parseMid(input: string): string {
@@ -155,7 +161,7 @@ async function pick(user: UserSearchCandidate) {
     query.value = ''
   }
   catch (cause) {
-    error.value = cause instanceof Error ? cause.message : t('settings.wanted_users.info_failed')
+    error.value = cause instanceof Error ? cause.message : t('settings.up_picker.info_failed')
     dropdown.hide()
   }
   finally {
@@ -193,8 +199,8 @@ function confirmActive(event: KeyboardEvent) {
         :aria-controls="listboxId"
         :aria-expanded="open"
         :aria-activedescendant="open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined"
-        :aria-label="placeholder ?? t('settings.wanted_users.placeholder')"
-        :placeholder="placeholder ?? t('settings.wanted_users.placeholder')"
+        :aria-label="placeholder ?? t('settings.up_picker.placeholder')"
+        :placeholder="placeholder ?? t('settings.up_picker.placeholder')"
         @focus="showResults"
         @click="showResults"
         @blur="dropdown.hide"

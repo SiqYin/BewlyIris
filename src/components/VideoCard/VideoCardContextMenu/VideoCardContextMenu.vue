@@ -14,6 +14,7 @@ import { cleanBilibiliUrl, getCSRF, getUserID, openLinkToNewTab } from '~/utils/
 import { openLinkInBackground } from '~/utils/tabs'
 
 import type { Video } from '../types'
+import { isBangumiVideo } from '../utils'
 import BlockUserConfirmDialog from './components/BlockUserConfirmDialog.vue'
 import DislikeDialog from './components/DislikeDialog.vue'
 import FavoriteVideoDialog from './components/FavoriteVideoDialog.vue'
@@ -49,9 +50,10 @@ useUserRelationScope(() => {
   const mid = getAuthorMid()
   return mid ? [mid] : []
 })
-const videoOptions = computed(() => [
-  { id: 1, key: 'notInterested' as const, name: t('video_card.operation.not_interested') },
-  { id: 2, key: 'notInterestedUploader' as const, name: t('video_card.operation.not_interested_uploader') },
+// B 站 Web 首页的上报原因独立于菜单序号。
+const webVideoOptions = computed(() => [
+  { id: 1, reasonId: 1, key: 'notInterested' as const, name: t('video_card.operation.not_interested') },
+  { id: 2, reasonId: 4, key: 'notInterestedUploader' as const, name: t('video_card.operation.not_interested_uploader') },
 ].filter(option => isOptionVisible(option.key)))
 const appVideoOptions = computed(() => (props.video.threePointV2 ?? []).filter(option =>
   option.type !== ThreePointV2Type.WatchLater
@@ -68,11 +70,11 @@ const recommendationGroup = computed((): ContextMenuPanelItem[] => {
     }))
   }
   if (getVideoType() === 'rcmd') {
-    return videoOptions.value.map(option => ({
+    return webVideoOptions.value.map(option => ({
       key: `rcmd-${option.id}`,
       name: option.name,
       icon: 'i-solar:confounded-circle-bold-duotone',
-      select: () => handleMoreCommand(option.id),
+      select: () => handleWebMoreCommand(option.reasonId),
     }))
   }
   return []
@@ -85,7 +87,7 @@ const showFollowUserDialog = ref<boolean>(false)
 const showUnfollowUserDialog = ref<boolean>(false)
 const showPipWindow = ref<boolean>(false)
 const loadingWebDislike = ref<boolean>(false)
-const { openIframeDrawer } = useBewlyApp()
+const { openIframeDrawer, openVideoDialog, openSettings } = useBewlyApp()
 
 enum VideoOption {
   OpenInNewTab,
@@ -93,6 +95,7 @@ enum VideoOption {
   OpenInCurrentTab,
   OpenInNewWindow,
   OpenInDrawer,
+  OpenInDialog,
   Favorite,
 
   ViewTheOriginalCover,
@@ -137,6 +140,7 @@ const commonOptions = computed((): OptionItem[][] => {
             { command: VideoOption.OpenInNewWindow, key: 'openInNewWindow' as const, name: t('video_card.operation.open_in_new_window'), icon: 'i-solar:maximize-square-3-bold-duotone' },
             { command: VideoOption.OpenInCurrentTab, key: 'openInCurrentTab' as const, name: t('video_card.operation.open_in_current_tab'), icon: 'i-solar:square-top-down-bold-duotone' },
             { command: VideoOption.OpenInDrawer, key: 'openInDrawer' as const, name: t('video_card.operation.open_in_drawer'), icon: 'i-solar:archive-up-minimlistic-bold-duotone' },
+            { command: VideoOption.OpenInDialog, key: 'openInDialog' as const, name: t('video_card.operation.open_in_dialog'), icon: 'i-solar:window-frame-bold-duotone' },
           ]
         : []),
     ],
@@ -194,7 +198,7 @@ const commonOptions = computed((): OptionItem[][] => {
     ])
   }
 
-  if (getVideoType() === 'bangumi' || getVideoType() === 'live') {
+  if (getVideoType() === 'bangumi' || getVideoType() === 'live' || isBangumiVideo(props.video)) {
     result = result.map((group) => {
       return group.filter((opt) => {
         return opt.command !== VideoOption.CopyBVNumber && opt.command !== VideoOption.CopyAVNumber && opt.command !== VideoOption.CopyCleanVideoLink && opt.command !== VideoOption.ViewThisUserChannel
@@ -203,6 +207,11 @@ const commonOptions = computed((): OptionItem[][] => {
   }
   return result.map(group => group.filter(option => isOptionVisible(option.key))).filter(group => group.length > 0)
 })
+
+// 菜单末尾的设置入口，打开设置并定位到本菜单的编辑区域；可在该编辑区域中隐藏。
+const customizeGroup = computed((): ContextMenuPanelItem[] => isOptionVisible('customizeMenu')
+  ? [{ key: 'customize-menu', name: t('video_card.operation.customize_menu'), icon: 'i-solar:settings-bold-duotone', select: openMenuSettings }]
+  : [])
 
 const menuGroups = computed((): ContextMenuPanelItem[][] => [
   recommendationGroup.value,
@@ -214,7 +223,17 @@ const menuGroups = computed((): ContextMenuPanelItem[][] => [
     select: () => handleCommonCommand(option.command),
   }))),
   ...props.extraGroups,
+  customizeGroup.value,
 ])
+
+function openMenuSettings() {
+  handleClose()
+  openSettings({
+    menu: 'BewlyComponents',
+    secondaryPage: 'video-card',
+    targetTitleKey: 'settings.group_video_card_context_menu',
+  })
+}
 
 function getAuthorMid() {
   if (!props.video.author)
@@ -225,7 +244,7 @@ function getAuthorMid() {
     : props.video.author.mid
 }
 
-async function submitWebDislike(command: number) {
+async function submitWebDislike(reasonId: number) {
   const csrf = getCSRF()
   const authorMid = getAuthorMid()
 
@@ -243,7 +262,7 @@ async function submitWebDislike(command: number) {
       id: props.video.id,
       mid: authorMid,
       track_id: props.video.trackId || '',
-      reason_id: command,
+      reason_id: reasonId,
       csrf,
     })
 
@@ -258,9 +277,9 @@ async function submitWebDislike(command: number) {
   }
 }
 
-function handleMoreCommand(command: number) {
+function handleWebMoreCommand(reasonId: number) {
   handleRemoved()
-  void submitWebDislike(command)
+  void submitWebDislike(reasonId)
 }
 
 function handleAppMoreCommand(command: ThreePointV2Type) {
@@ -301,6 +320,10 @@ function handleCommonCommand(command: VideoOption) {
       break
     case VideoOption.OpenInDrawer:
       openIframeDrawer(props.video.url || '')
+      handleClose()
+      break
+    case VideoOption.OpenInDialog:
+      openVideoDialog(props.video.url || '')
       handleClose()
       break
 

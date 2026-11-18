@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { settings } from '~/logic'
 import type { VideoCardContextMenuKey } from '~/logic/storage'
 
+import SettingsSearchContainer from '../../components/SettingsSearchContainer.vue'
 import SettingsToggleTag from '../../components/SettingsToggleTag.vue'
 
 const { t } = useI18n()
@@ -38,6 +39,7 @@ const groups = computed<MenuGroup[]>(() => [
       { key: 'openInNewWindow', label: t('video_card.operation.open_in_new_window'), icon: 'i-solar:maximize-square-3-bold-duotone' },
       { key: 'openInCurrentTab', label: t('video_card.operation.open_in_current_tab'), icon: 'i-solar:square-top-down-bold-duotone' },
       { key: 'openInDrawer', label: t('video_card.operation.open_in_drawer'), icon: 'i-solar:archive-up-minimlistic-bold-duotone' },
+      { key: 'openInDialog', label: t('video_card.operation.open_in_dialog'), icon: 'i-solar:window-frame-bold-duotone' },
       { key: 'favorite', label: t('video_card.operation.favorite'), icon: 'i-solar:star-bold-duotone' },
     ],
   },
@@ -60,6 +62,13 @@ const groups = computed<MenuGroup[]>(() => [
       { key: 'blockUser', label: t('video_card.operation.block_user'), icon: 'i-solar:user-block-bold-duotone' },
     ],
   },
+  {
+    id: 'other',
+    label: t('settings.video_card_context_menu_region_other'),
+    elements: [
+      { key: 'customizeMenu', label: t('video_card.operation.customize_menu'), icon: 'i-solar:settings-bold-duotone' },
+    ],
+  },
 ])
 
 function isVisible(key: VideoCardContextMenuKey) {
@@ -73,8 +82,8 @@ function setVisible(key: VideoCardContextMenuKey, visible: boolean) {
 </script>
 
 <template>
-  <div class="context-menu-editor">
-    <div v-for="group in groups" :key="group.id" class="context-menu-row">
+  <SettingsSearchContainer class="context-menu-editor">
+    <SettingsSearchContainer v-for="group in groups" :key="group.id" class="context-menu-row">
       <span class="context-menu-row__label">{{ group.label }}</span>
 
       <div class="context-menu-row__elements">
@@ -84,11 +93,12 @@ function setVisible(key: VideoCardContextMenuKey, visible: boolean) {
           :model-value="isVisible(element.key)"
           :label="element.label"
           :icon="element.icon"
+          searchable
           @update:model-value="setVisible(element.key, $event)"
         />
       </div>
-    </div>
-  </div>
+    </SettingsSearchContainer>
+  </SettingsSearchContainer>
 </template>
 
 <style lang="scss" scoped>

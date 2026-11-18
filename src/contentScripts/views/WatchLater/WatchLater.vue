@@ -2,21 +2,24 @@
 import { useDateFormat } from '@vueuse/core'
 import type { CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useToast } from 'vue-toastification'
 
 import Icon from '~/components/Icon.vue'
 import LiquidSegmentIndicator from '~/components/LiquidSegmentIndicator.vue'
-import type { Video } from '~/components/VideoCard/types'
+import type { Video, VideoCardRemovedState } from '~/components/VideoCard/types'
 import { getAuthorJumpUrl } from '~/components/VideoCard/utils'
 import VideoCardContextMenu from '~/components/VideoCard/VideoCardContextMenu/VideoCardContextMenu.vue'
 import VideoCardGrid from '~/components/VideoCardGrid.vue'
+import WatchLaterRemovedMask from '~/components/WatchLaterRemovedMask.vue'
 import { useBewlyApp } from '~/composables/useAppProvider'
 import { useConfirmDialog } from '~/composables/useConfirmDialog'
 import type { WatchLaterLayout } from '~/logic'
-import { settings, watchLaterLayout } from '~/logic'
+import { hasVisibleVideoCardMenuAction, settings, watchLaterLayout } from '~/logic'
 import { ensureWatchLaterState, markWatchLater, markWatchLaterCleared } from '~/logic/watchLaterState'
 import type { List as VideoItem, WatchLaterResult } from '~/models/video/watchLater'
 import { useTopBarStore } from '~/stores/topBarStore'
 import api from '~/utils/api'
+import { localizeBilibiliUrl } from '~/utils/bilibiliLocale'
 import { calcCurrentTime } from '~/utils/dataFormatter'
 import { computeFloatingMenuPosition } from '~/utils/floatingMenu'
 import { getCSRF, getUserID, openLinkToNewTab, removeHttpFromUrl } from '~/utils/main'
@@ -24,8 +27,9 @@ import { openLinkInBackground } from '~/utils/tabs'
 import { getWatchLaterAuthor } from '~/utils/watchLater'
 
 const { t } = useI18n()
+const toast = useToast()
 const { confirm: showConfirmDialog } = useConfirmDialog()
-const { openIframeDrawer, mainAppRef } = useBewlyApp()
+const { openIframeDrawer, openVideoDialog, mainAppRef } = useBewlyApp()
 const topBarStore = useTopBarStore()
 
 provide('getVideoType', () => 'common')
@@ -34,7 +38,7 @@ const moreMenuItem = ref<VideoItem | null>(null)
 const moreMenuTrigger = ref<HTMLButtonElement | null>(null)
 const moreMenuStyles = ref<CSSProperties>({})
 const showMoreButton = computed(() => settings.value.showVideoCardMoreButton
-  && settings.value.videoCardContextMenuConfig.some(item => item.visible))
+  && hasVisibleVideoCardMenuAction(settings.value.videoCardContextMenuConfig))
 
 function openMoreMenu(item: VideoItem, event: MouseEvent) {
   const trigger = event.currentTarget as HTMLButtonElement
@@ -58,6 +62,12 @@ const watchLaterCount = ref<number>(0)
 const { handlePageRefresh, handleReachBottom, haveScrollbar } = useBewlyApp()
 const pageSize = ref<number>(20)
 const pendingRemovals = new Set<number>()
+/**
+ * 卡片删除遮罩状态：removing 删除中，removed 已删除但保留原位可还原，restoring 还原中。
+ * 点击移除即调用接口，不再二次确认；误删由遮罩上的撤销兜底。
+ */
+type RemoveStatus = 'removing' | 'removed' | 'restoring'
+const removeStatuses = reactive(new Map<number, RemoveStatus>())
 let consumedCount = 0
 let requestVersion = 0
 let disposed = false
@@ -94,6 +104,7 @@ async function initData() {
   isLoading.value = false
   noMoreContent.value = false
   currentWatchLaterList.value.length = 0
+  removeStatuses.clear()
   consumedCount = 0
   await getWatchLaterListByPage()
 }
@@ -176,9 +187,10 @@ async function getWatchLaterListByPage() {
   }
 }
 
-async function deleteWatchLaterItem(aid: number) {
+// keepCard：删除后卡片保留在原位并显示还原遮罩；返回是否删除成功
+async function deleteWatchLaterItem(aid: number, keepCard = false): Promise<boolean> {
   if (pendingRemovals.has(aid))
-    return
+    return false
 
   pendingRemovals.add(aid)
   const accountId = getUserID()
@@ -191,7 +203,10 @@ async function deleteWatchLaterItem(aid: number) {
       // 请求期间其他删除或刷新可能改变下标，按视频标识查找当前条目。
       const index = currentWatchLaterList.value.findIndex(video => video.aid === aid)
       if (index !== -1) {
-        currentWatchLaterList.value.splice(index, 1)
+        if (keepCard)
+          removeStatuses.set(aid, 'removed')
+        else
+          currentWatchLaterList.value.splice(index, 1)
         watchLaterCount.value = Math.max(0, watchLaterCount.value - 1)
         consumedCount = Math.max(0, consumedCount - 1)
       }
@@ -199,6 +214,7 @@ async function deleteWatchLaterItem(aid: number) {
       syncTopBarWatchLaterState()
       if (wasLoading)
         void getWatchLaterListByPage()
+      return true
     }
   }
   catch (error) {
@@ -207,10 +223,72 @@ async function deleteWatchLaterItem(aid: number) {
   finally {
     pendingRemovals.delete(aid)
   }
+  return false
 }
 
-function handleRemoveWatchLater(item: VideoItem) {
-  void deleteWatchLaterItem(item.aid)
+// 点击即删除，卡片保留在原位并显示可撤销遮罩
+async function handleRemoveWatchLater(item: VideoItem) {
+  if (removeStatuses.has(item.aid))
+    return
+
+  removeStatuses.set(item.aid, 'removing')
+  const success = await deleteWatchLaterItem(item.aid, true)
+  if (!success && removeStatuses.get(item.aid) === 'removing')
+    removeStatuses.delete(item.aid)
+}
+
+async function restoreWatchLater(item: VideoItem) {
+  if (removeStatuses.get(item.aid) !== 'removed')
+    return
+
+  removeStatuses.set(item.aid, 'restoring')
+  const accountId = getUserID()
+  try {
+    const res = await api.watchlater.saveToWatchLater({ aid: item.aid, csrf: getCSRF() })
+    if (disposed || getUserID() !== accountId || removeStatuses.get(item.aid) !== 'restoring')
+      return
+    if (res.code !== 0) {
+      removeStatuses.set(item.aid, 'removed')
+      toast.error(res.message)
+      return
+    }
+
+    // 重新加入的条目位于服务器列表前部，游标保持不变，重叠页由 aid 去重
+    removeStatuses.delete(item.aid)
+    watchLaterCount.value++
+    markWatchLater({ aid: item.aid, bvid: item.bvid }, true)
+    syncTopBarWatchLaterState()
+  }
+  catch (error) {
+    console.error('重新加入稍后再看失败:', error)
+    if (removeStatuses.get(item.aid) === 'restoring')
+      removeStatuses.set(item.aid, 'removed')
+  }
+}
+
+// 收起已移除的占位卡片：条目已从服务器删除，这里移出列表并清除状态，触发 removable-list 离场动画
+// 仅在删除已完成（removed）时可收起：请求进行中收起会让计数与游标漏更新，或在还原后丢失同步
+function dismissRemovedItem(item: VideoItem) {
+  if (removeStatuses.get(item.aid) !== 'removed')
+    return
+
+  const index = currentWatchLaterList.value.findIndex(video => video.aid === item.aid)
+  if (index !== -1)
+    currentWatchLaterList.value.splice(index, 1)
+  removeStatuses.delete(item.aid)
+}
+
+function getWatchLaterRemovedState(item: VideoItem): VideoCardRemovedState | undefined {
+  const status = removeStatuses.get(item.aid)
+  if (!status)
+    return undefined
+
+  return {
+    message: t('watch_later.removed'),
+    pending: status !== 'removed',
+    onUndo: () => void restoreWatchLater(item),
+    onDismiss: status === 'removed' ? () => dismissRemovedItem(item) : undefined,
+  }
 }
 
 function handlePlayWatchLater(item: VideoItem) {
@@ -220,7 +298,7 @@ function handlePlayWatchLater(item: VideoItem) {
 function handleWatchLaterCardClick(item: VideoItem, event: MouseEvent) {
   event.preventDefault()
   event.stopPropagation()
-  handleLinkClick(`https://www.bilibili.com/list/watchlater?bvid=${item.bvid}`)
+  handleLinkClick(localizeBilibiliUrl(`https://www.bilibili.com/list/watchlater?bvid=${item.bvid}`))
 }
 
 function transformWatchLaterItem(item: VideoItem): Video {
@@ -282,12 +360,15 @@ async function handleRemoveWatchedVideos() {
 }
 
 function handlePlayAll() {
-  openLinkToNewTab('https://www.bilibili.com/list/watchlater')
+  openLinkToNewTab(localizeBilibiliUrl('https://www.bilibili.com/list/watchlater'))
 }
 
 function handleLinkClick(url: string) {
   if (settings.value.videoCardLinkOpenMode === 'drawer') {
     openIframeDrawer(url) // 在抽屉打开
+  }
+  else if (settings.value.videoCardLinkOpenMode === 'dialog') {
+    openVideoDialog(url) // 在弹窗打开
   }
   else if (settings.value.videoCardLinkOpenMode === 'currentTab') {
     window.open(url, '_self') // 在当前标签页打开
@@ -305,9 +386,12 @@ function jumpToLoginPage() {
 }
 
 function handleVideoLinkClick(bvid: string) {
-  const videoUrl = `https://www.bilibili.com/video/${bvid}/`
+  const videoUrl = localizeBilibiliUrl(`https://www.bilibili.com/video/${bvid}/`)
   if (settings.value.videoCardLinkOpenMode === 'drawer') {
     openIframeDrawer(videoUrl) // 在抽屉打开
+  }
+  else if (settings.value.videoCardLinkOpenMode === 'dialog') {
+    openVideoDialog(videoUrl) // 在弹窗打开
   }
   else if (settings.value.videoCardLinkOpenMode === 'currentTab') {
     window.open(videoUrl, '_self') // 在当前标签页打开
@@ -323,6 +407,10 @@ function handleVideoLinkClick(bvid: string) {
 function handleOpenVideoPageAndRemove(bvid: string, aid: number) {
   handleVideoLinkClick(bvid)
   void deleteWatchLaterItem(aid)
+}
+
+function getItemKey(item: VideoItem) {
+  return item.aid
 }
 </script>
 
@@ -364,19 +452,20 @@ function handleOpenVideoPageAndRemove(bvid: string, aid: number) {
           </button>
         </div>
       </div>
-      <Empty v-if="watchLaterCount === 0 && !isLoading" />
+      <Empty v-if="watchLaterCount === 0 && currentWatchLaterList.length === 0 && !isLoading" />
       <template v-else>
         <!-- grid layout -->
         <VideoCardGrid
           v-if="watchLaterLayout === 'grid'"
           :items="currentWatchLaterList"
           :transform-item="transformWatchLaterItem"
-          :get-item-key="(item: VideoItem) => item.aid"
+          :get-item-key="getItemKey"
           grid-layout="adaptive"
           :loading="isLoading"
           :no-more-content="noMoreContent"
           :show-watch-later="false"
           :card-click-handler="handleWatchLaterCardClick"
+          :get-removed-state="getWatchLaterRemovedState"
           @refresh="initData"
           @load-more="getWatchLaterListByPage"
         >
@@ -412,7 +501,7 @@ function handleOpenVideoPageAndRemove(bvid: string, aid: number) {
             <ALink
               v-for="item in currentWatchLaterList"
               :key="item.aid"
-              :href="`https://www.bilibili.com/video/${item.bvid}/`"
+              :href="localizeBilibiliUrl(`https://www.bilibili.com/video/${item.bvid}/`)"
               type="videoCard"
               class="group watch-later-list-item"
               flex cursor-pointer
@@ -426,6 +515,15 @@ function handleOpenVideoPageAndRemove(bvid: string, aid: number) {
                 p-2 m-1
                 content-visibility-auto
               >
+                <!-- 删除遮罩：覆盖整行并拦截链接点击，删除后可撤销；右上角 × 可收起占位卡片 -->
+                <WatchLaterRemovedMask
+                  v-if="removeStatuses.has(item.aid)"
+                  :message="t('watch_later.removed')"
+                  :pending="removeStatuses.get(item.aid) !== 'removed'"
+                  @undo="restoreWatchLater(item)"
+                  @dismiss="dismissRemovedItem(item)"
+                />
+
                 <!-- Cover -->
                 <div
                   pos="relative"
@@ -551,7 +649,7 @@ function handleOpenVideoPageAndRemove(bvid: string, aid: number) {
                         type="button"
                         p-2
                         duration-300
-                        @click.prevent.stop="handleLinkClick(`https://www.bilibili.com/list/watchlater?bvid=${item.bvid}`)"
+                        @click.prevent.stop="handleLinkClick(localizeBilibiliUrl(`https://www.bilibili.com/list/watchlater?bvid=${item.bvid}`))"
                       >
                         <div i-tabler:list-check />
                       </button>
@@ -565,7 +663,7 @@ function handleOpenVideoPageAndRemove(bvid: string, aid: number) {
                         type="button"
                         p-2
                         duration-300
-                        @click.prevent.stop="deleteWatchLaterItem(item.aid)"
+                        @click.prevent.stop="handleRemoveWatchLater(item)"
                       >
                         <div i-tabler:trash />
                       </button>
@@ -691,7 +789,7 @@ function handleOpenVideoPageAndRemove(bvid: string, aid: number) {
         :key="moreMenuItem.aid"
         :video="{
           ...transformWatchLaterItem(moreMenuItem),
-          url: `https://www.bilibili.com/video/${moreMenuItem.bvid}/`,
+          url: localizeBilibiliUrl(`https://www.bilibili.com/video/${moreMenuItem.bvid}/`),
         }"
         :context-menu-styles="moreMenuStyles"
         :trigger-element="moreMenuTrigger"

@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
 
 import packageJson from './package.json'
+import { injectMessagesPlugin } from './scripts/injectMessages'
 import { thirdPartyLicensesVitePlugin } from './scripts/thirdPartyLicenses'
-import { isDev, isFirefox, isSafari, r } from './scripts/utils'
+import { isFirefox, isSafari, r } from './scripts/utils'
 import { sharedConfig } from './vite.config'
 
 // bundling the content script using Vite
@@ -10,12 +11,10 @@ export default defineConfig({
   ...sharedConfig,
   plugins: [
     ...sharedConfig.plugins!,
+    injectMessagesPlugin(),
     thirdPartyLicensesVitePlugin('inject'),
   ],
   build: {
-    watch: isDev
-      ? { include: ['./**/*'] }
-      : undefined,
     outDir: r(isFirefox ? 'extension-firefox/dist/contentScripts' : isSafari ? 'extension-safari/dist/contentScripts' : 'extension/dist/contentScripts'),
     cssCodeSplit: false,
     emptyOutDir: false,

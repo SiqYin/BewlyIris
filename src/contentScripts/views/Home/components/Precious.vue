@@ -6,6 +6,7 @@ import { useHomeTabState } from '~/composables/useHomeTabState'
 import type { GridLayoutType } from '~/logic'
 import type { PreciousItem, PreciousResult } from '~/models/video/precious'
 import api from '~/utils/api'
+import type { ApiErrorReportSource } from '~/utils/apiDiagnostics'
 import { decodeHtmlEntities } from '~/utils/htmlDecode'
 
 interface VideoElement {
@@ -27,6 +28,8 @@ const tabState = useHomeTabState({ retainedFields: [] })
 const isLoading = ref<boolean>(false)
 const videoList = tabState.ref<VideoElement[]>('videoList', [])
 const noMoreContent = tabState.ref<boolean>('noMoreContent', true) // 入站必刷没有分页
+const requestFailed = tabState.ref<boolean>('requestFailed', false)
+const errorReportSource: ApiErrorReportSource = { scene: '入站必刷', queries: ['getPreciousVideos'] }
 const hasLoaded = tabState.ref<boolean>('hasLoaded', false)
 const { handleReachBottom, handlePageRefresh } = useBewlyApp()
 
@@ -43,6 +46,7 @@ async function initData() {
     return
 
   videoList.value = []
+  requestFailed.value = false
   hasLoaded.value = false
   await getData()
 }
@@ -56,8 +60,10 @@ async function getData() {
   let loaded = false
   try {
     loaded = await getPreciousVideos()
-    if (tabState.isCurrent() && loaded)
-      hasLoaded.value = true
+    if (tabState.isCurrent()) {
+      requestFailed.value = !loaded
+      hasLoaded.value ||= loaded
+    }
   }
   finally {
     if (tabState.isCurrent()) {
@@ -136,6 +142,18 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({ initData })
+
+function getItemDisplayData(item: VideoElement) {
+  return item.displayData
+}
+
+function getItemKey(item: VideoElement) {
+  return item.uniqueId
+}
+
+function isSkeletonItem(item: VideoElement) {
+  return !item.item
+}
 </script>
 
 <template>
@@ -145,9 +163,11 @@ defineExpose({ initData })
       :grid-layout="gridLayout"
       :loading="isLoading"
       :no-more-content="noMoreContent"
-      :transform-item="(item: VideoElement) => item.displayData"
-      :get-item-key="(item: VideoElement) => item.uniqueId"
-      :is-skeleton-item="(item: VideoElement) => !item.item"
+      :request-failed="requestFailed"
+      :error-report-source="errorReportSource"
+      :transform-item="getItemDisplayData"
+      :get-item-key="getItemKey"
+      :is-skeleton-item="isSkeletonItem"
       show-preview
       @refresh="initData"
       @load-more="() => {}"

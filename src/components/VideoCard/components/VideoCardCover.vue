@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import type flvjs from 'flv.js'
-import type { ErrorData, Events } from 'hls.js'
-import Hls from 'hls.js'
 
 import Button from '~/components/Button.vue'
 import Icon from '~/components/Icon.vue'
 import LazyPicture from '~/components/LazyPicture.vue'
+import MaskDismissButton from '~/components/MaskDismissButton.vue'
 import Progress from '~/components/Progress.vue'
 import WatchLaterCoverButton from '~/components/WatchLaterCoverButton.vue'
 import { useVideoPreviewSwipeSeek } from '~/composables/useVideoPreviewSwipeSeek'
 import { settings } from '~/logic'
 import { calcCurrentTime } from '~/utils/dataFormatter'
+import { loadFlvjs } from '~/utils/streamPlayers'
 import { getVideoWatchState } from '~/utils/videoVisitHistory'
 import { normalizeWatchLaterTarget } from '~/utils/watchLaterActions'
 
@@ -22,6 +22,14 @@ interface Props {
   layout: 'modern' | 'old'
   horizontal?: boolean
   removed: boolean
+  /** 覆盖默认的「视频已移除」文案 */
+  removedMessage?: string
+  /** 移除/还原请求进行中 */
+  removedPending?: boolean
+  /** 等待确认移除：显示「确定/取消」而非「还原」 */
+  removedConfirming?: boolean
+  /** 移除遮罩右上角显示「收起」按钮 */
+  removedDismissable?: boolean
   isHover: boolean
   shouldHideOverlayElements: boolean
   previewVideoUrl: string
@@ -51,6 +59,9 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   undo: []
+  confirmRemoved: []
+  cancelRemoved: []
+  dismissRemoved: []
   imageLoaded: []
   previewFullscreenChange: [isFullscreen: boolean]
 }>()
@@ -71,7 +82,7 @@ const playbackProgress = computed(() => {
   return watchState?.status === 'watched' ? watchState.percentage : undefined
 })
 
-const videoRef = defineModel<HTMLVideoElement | null>('videoElement', { default: null })
+const videoRef = ref<HTMLVideoElement | null>(null)
 const previewTime = defineModel<number | null>('previewTime', { default: null })
 const previewIdentity = computed(() => [props.video?.bvid, props.video?.aid, props.video?.cid, props.video?.epid].join(':'))
 let activePreviewIdentity = ''
@@ -83,7 +94,6 @@ const isPreviewFullscreen = ref<boolean>(false)
 const showVideoControls = ref<boolean>(false)
 const shouldEnableVideoControls = computed(() => settings.value.enableVideoCtrlBarOnVideoCard && !props.video?.roomid)
 const shouldEnableSwipeSeek = computed(() => settings.value.enableVideoPreviewSwipeSeek && !props.video?.roomid)
-let hls: Hls | null = null
 let flvPlayer: flvjs.Player | null = null
 let previewGeneration = 0
 let previewEvents: AbortController | null = null
@@ -196,10 +206,6 @@ function cleanupPlayers() {
   previewGeneration++
   previewEvents?.abort()
   previewEvents = null
-  if (hls) {
-    hls.destroy()
-    hls = null
-  }
   if (flvPlayer) {
     flvPlayer.pause()
     flvPlayer.unload()
@@ -215,9 +221,7 @@ async function setupPreviewVideo(url: string, videoEl: HTMLVideoElement) {
   if (url.includes('.flv')) {
     const generation = ++previewGeneration
     try {
-      // 动态导入 flv.js 以避免构建时依赖问题
-      const flvjsModule = await import('flv.js')
-      const flvjs = flvjsModule.default
+      const flvjs = await loadFlvjs()
 
       if (generation !== previewGeneration || !videoEl.isConnected)
         return
@@ -274,80 +278,6 @@ async function setupPreviewVideo(url: string, videoEl: HTMLVideoElement) {
     catch (error) {
       console.error('Failed to load flv.js:', error)
       isLoadingStream.value = false
-    }
-  }
-  // Check if URL is HLS stream (.m3u8)
-  else if (url.includes('.m3u8') || url.includes('m3u8')) {
-    if (Hls.isSupported()) {
-      // Cleanup previous players and clear video src
-      cleanupPlayers()
-      resetVideoElement(videoEl)
-
-      isLoadingStream.value = true
-
-      hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        // 优化配置以更快开始播放
-        maxBufferLength: 10, // 减少缓冲长度
-        maxMaxBufferLength: 20,
-        liveSyncDurationCount: 2, // 减少直播同步计数
-        liveMaxLatencyDurationCount: 5,
-        maxBufferSize: 60 * 1000 * 1000, // 60MB
-      })
-
-      hls.loadSource(url)
-      hls.attachMedia(videoEl)
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        isLoadingStream.value = false
-        videoEl.play().catch(() => {
-          // Ignore autoplay errors
-        })
-      })
-
-      hls.on(Hls.Events.ERROR, (_event: Events.ERROR, data: ErrorData) => {
-        if (data.fatal) {
-          isLoadingStream.value = false
-          switch (data.type) {
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              // Try to recover from media errors
-              hls?.recoverMediaError()
-              break
-            default:
-              // For other fatal errors, cleanup
-              cleanupPlayers()
-              break
-          }
-        }
-      })
-
-      // 添加首帧加载事件
-      hls.on(Hls.Events.BUFFER_APPENDED, () => {
-        if (isLoadingStream.value) {
-          isLoadingStream.value = false
-        }
-      })
-    }
-    // cSpell:ignore mpegurl
-    else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-      cleanupPlayers()
-      resetVideoElement(videoEl)
-      // Native HLS support (Safari)
-      isLoadingStream.value = true
-      videoEl.src = url
-
-      const handleCanPlay = () => {
-        isLoadingStream.value = false
-        videoEl.removeEventListener('canplay', handleCanPlay)
-      }
-
-      previewEvents = new AbortController()
-      videoEl.addEventListener('canplay', handleCanPlay, { once: true, signal: previewEvents.signal })
-      videoEl.play().catch(() => {
-        isLoadingStream.value = false
-        // Ignore autoplay errors
-      })
     }
   }
   else {
@@ -410,11 +340,22 @@ watch([shouldEnableVideoControls, () => props.previewVideoUrl, () => props.isHov
   showControls()
 }, { immediate: true })
 
-// Cleanup on unmount
-onMounted(() => {
+// Only a mounted preview video can enter fullscreen, so cards without one keep
+// no document listeners.
+watch(videoRef, (videoEl, _previousVideo, onCleanup) => {
+  if (!videoEl)
+    return
+
   document.addEventListener('fullscreenchange', syncPreviewFullscreenState)
   document.addEventListener('webkitfullscreenchange', syncPreviewFullscreenState as EventListener)
-})
+  onCleanup(() => {
+    document.removeEventListener('fullscreenchange', syncPreviewFullscreenState)
+    document.removeEventListener('webkitfullscreenchange', syncPreviewFullscreenState as EventListener)
+    // Removing a fullscreen element exits fullscreen after this listener is gone.
+    if (isPreviewFullscreen.value)
+      syncPreviewFullscreenState()
+  })
+}, { immediate: true })
 
 function deactivatePreview() {
   isActive.value = false
@@ -431,11 +372,7 @@ onActivated(() => {
 })
 onDeactivated(deactivatePreview)
 
-onBeforeUnmount(() => {
-  document.removeEventListener('fullscreenchange', syncPreviewFullscreenState)
-  document.removeEventListener('webkitfullscreenchange', syncPreviewFullscreenState as EventListener)
-  deactivatePreview()
-})
+onBeforeUnmount(deactivatePreview)
 
 // Shadow styles are now injected globally via CSS variables from App.vue
 // No per-card computation needed - significant performance improvement!
@@ -480,11 +417,40 @@ onBeforeUnmount(() => {
         pos="absolute top-0 left-0" w-full h-fit aspect-video flex="~ col gap-2 items-center justify-center"
         bg="$bew-fill-4" backdrop-blur-20px mix-blend-luminosity rounded="$bew-media-radius" z-2
       >
+        <MaskDismissButton
+          v-if="removedDismissable"
+          :label="$t('common.dismiss')"
+          @dismiss="emit('dismissRemoved')"
+        />
         <p mb-2 color-white text-lg>
-          {{ $t('video_card.video_removed') }}
+          {{ removedMessage || $t('video_card.video_removed') }}
         </p>
+        <div v-if="removedConfirming" flex="~ gap-2 items-center">
+          <Button
+            color="rgba(255,255,255,.35)" text-color="white" size="small"
+            :disabled="removedPending"
+            @click.prevent.stop="emit('confirmRemoved')"
+          >
+            <template #left>
+              <div i-mingcute-check-line text-lg />
+            </template>
+            {{ $t('common.operation.confirm') }}
+          </Button>
+          <Button
+            color="rgba(255,255,255,.35)" text-color="white" size="small"
+            :disabled="removedPending"
+            @click.prevent.stop="emit('cancelRemoved')"
+          >
+            <template #left>
+              <div i-mingcute-close-line text-lg />
+            </template>
+            {{ $t('common.operation.cancel') }}
+          </Button>
+        </div>
         <Button
+          v-else
           color="rgba(255,255,255,.35)" text-color="white" size="small"
+          :disabled="removedPending"
           @click.prevent.stop="emit('undo')"
         >
           <template #left>
@@ -782,12 +748,8 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  /* 简化渐变：从6层减少到3层，提升性能 */
-  background: var(
-    --bew-video-card-shadow-gradient,
-    linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.35) 50%, transparent 100%)
-  );
-  height: var(--bew-video-card-shadow-height-multiplier, calc(var(--video-card-stats-overlay-scale, 1.4) * 100%));
+  background: linear-gradient(to top, rgb(0 0 0 / 80%) 0%, rgb(0 0 0 / 70%) 30%, rgb(0 0 0 / 0%) 100%);
+  height: 100%;
   border-bottom-left-radius: inherit;
   border-bottom-right-radius: inherit;
   pointer-events: none;

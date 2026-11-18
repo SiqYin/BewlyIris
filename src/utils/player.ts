@@ -1,9 +1,10 @@
 // 更完善的播放器元素选择器
-import { MOMENTS_VIDEO_DIALOG_IFRAME_NAME } from '~/constants/globalEvents'
+import { VIDEO_DIALOG_IFRAME_NAME } from '~/constants/globalEvents'
 import { settings } from '~/logic'
 import type { AutoPlayMode, DefaultVideoPlayerMode, VideoPlayerModeContext, VideoPlayerModeOverride } from '~/logic/storage'
 import { getBilibiliPathname } from '~/utils/bilibiliLocale'
 import { i18n } from '~/utils/i18n'
+import { isImmersiveFeedFrame } from '~/utils/immersiveFeed'
 import { normalizePlaybackRate, normalizePlaybackRateStep } from '~/utils/playbackRate'
 import { getCachedCurrentVideoPageInfo, getCurrentVideoPageNumber } from '~/utils/videoPageInfo'
 
@@ -262,13 +263,24 @@ export function webFullscreen(application?: PlayerModeApplication) {
   }, { signal: application?.signal, onFinished: application?.onSettled }).start()
 }
 
+// 评论深链（如通知里的「回复我的」）由 B 站滚动定位到目标评论，不能再拉回播放器
+function isCommentDeepLink() {
+  if (/#reply\d+/i.test(location.hash))
+    return true
+  const params = new URLSearchParams(location.search)
+  return params.has('comment_root_id') || params.has('comment_secondary_id')
+}
+
 // 将播放器滚动到设置的位置
 function scrollPlayerToOptimalPosition(delay = 1000, signal?: AbortSignal) {
   // 如果设置了不滚动，直接返回
-  if (!settings.value.videoPlayerScroll)
+  if (!settings.value.videoPlayerScroll || isCommentDeepLink())
     return
 
   const scroll = () => {
+    if (isCommentDeepLink())
+      return
+
     const playerElement = document.querySelector(_videoClassTag.player)
     if (!playerElement)
       return
@@ -623,8 +635,8 @@ function isVideoPlayerModeOverride(value: unknown): value is VideoPlayerModeOver
     || value === 'bewlyWidescreen'
 }
 
-/** 动态视频弹窗的显示模式覆盖；未启用覆盖或选择继承时返回 null，交由视频所属场景决定。 */
-export function resolveMomentsDialogPlayerModeOverride(): DefaultVideoPlayerMode | null {
+/** 视频弹窗（动态页、视频卡片）的显示模式覆盖；未启用覆盖或选择继承时返回 null，交由视频所属场景决定。 */
+export function resolveVideoDialogPlayerModeOverride(): DefaultVideoPlayerMode | null {
   if (!settings.value.enableVideoPlayerModeOverrides)
     return null
 
@@ -633,11 +645,15 @@ export function resolveMomentsDialogPlayerModeOverride(): DefaultVideoPlayerMode
 }
 
 export function resolveDefaultVideoPlayerMode(): DefaultVideoPlayerMode {
+  // 首页沉浸式模式的视频页固定使用 Bewly 宽屏，侧栏显示首页推荐流
+  if (isImmersiveFeedFrame())
+    return 'bewlyWidescreen'
+
   if (!settings.value.enableVideoPlayerModeOverrides)
     return settings.value.defaultVideoPlayerMode
 
-  if (window.name === MOMENTS_VIDEO_DIALOG_IFRAME_NAME) {
-    const dialogMode = resolveMomentsDialogPlayerModeOverride()
+  if (window.name === VIDEO_DIALOG_IFRAME_NAME) {
+    const dialogMode = resolveVideoDialogPlayerModeOverride()
     if (dialogMode)
       return dialogMode
   }
@@ -1273,7 +1289,7 @@ export function resetPlaybackRate() {
   }
 }
 
-// 应用记住的倍速
+// 静默恢复记住的倍速，播放器初始化时可能多次调用。
 export function applyRememberedPlaybackRate() {
   if (applyRateRetryTimer !== undefined)
     window.clearTimeout(applyRateRetryTimer)
@@ -1308,10 +1324,6 @@ function tryApplyRememberedPlaybackRate() {
     // 媒体加载会将 playbackRate 恢复为 defaultPlaybackRate，因此两者都要同步。
     video.defaultPlaybackRate = savedRate
     video.playbackRate = savedRate
-    // 只在倍速不是1时显示状态
-    if (savedRate !== 1) {
-      showState(t('player_state.speed', { rate: savedRate }))
-    }
   }
 }
 

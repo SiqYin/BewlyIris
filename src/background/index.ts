@@ -1,7 +1,9 @@
 import browser from 'webextension-polyfill'
 
 import { isContentScriptTargetUrl } from '~/constants/contentScript'
-import { BILIBILI_DESKTOP_USER_AGENT, isBilibiliWwwUrl, isPreventMobileRedirectEnabled } from '~/utils/bilibiliDesktopNavigation'
+import { BILIBILI_DESKTOP_USER_AGENT, getBilibiliDesktopNavigatorValues, isBilibiliWwwUrl, isPreventMobileRedirectEnabled } from '~/utils/bilibiliDesktopNavigation'
+import { GET_BROWSER_INFO_MESSAGE, getExtensionBrowserInfo } from '~/utils/browserInfo'
+import { onMessage } from '~/utils/messaging'
 
 import { isAppClientRequestUrl, setupAppClient } from './appClient'
 import { setupContentScriptRefreshPrompt } from './contentScriptRefreshPrompt'
@@ -9,6 +11,7 @@ import { setupLoginStateWatcher } from './loginStateWatcher'
 import { setupApiMsgListeners } from './messageListeners/api'
 import { setupTabMsgListeners } from './messageListeners/tabs'
 import { setupSettingsCloudSync } from './settingsCloudSync'
+import { setupSettingsPage } from './settingsPage'
 import { setupSettingsStorageCoordinator } from './settingsStorageCoordinator'
 import { setupTopBarStateBroker } from './topBarStateBroker'
 import { syncUposRedirectRule } from './uposRedirectManager'
@@ -69,18 +72,34 @@ async function syncPreventMobileRedirectRule(enabled: boolean) {
   }
 }
 
+let preventMobileRedirectApplied = false
+
+function applyPreventMobileRedirectSetting(storedSettings: unknown) {
+  const enabled = isPreventMobileRedirectEnabled(storedSettings)
+  // 任一设置项变化都会触发；规则重建在浏览器主进程执行，开关未变时跳过。
+  if (preventMobileRedirectApplied && enabled === preventMobileRedirectEnabled)
+    return Promise.resolve()
+
+  preventMobileRedirectApplied = true
+  preventMobileRedirectEnabled = enabled
+  return syncPreventMobileRedirectRule(enabled)
+}
+
 const preventMobileRedirectReady = browser.storage.local.get('settings').then((result) => {
-  preventMobileRedirectEnabled = isPreventMobileRedirectEnabled(result.settings)
+  // 启动时先按已存储的设置安装 UPOS 手动线路规则（自动模式下为空操作）。
   void syncUposRedirectRule(result.settings || {})
-  return syncPreventMobileRedirectRule(preventMobileRedirectEnabled)
+  // 启动读取期间已收到变更时，变更值更新，不能被启动快照覆盖。
+  if (!preventMobileRedirectApplied)
+    return applyPreventMobileRedirectSetting(result.settings)
 })
 
 browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== 'local' || !changes.settings)
     return
 
-  preventMobileRedirectEnabled = isPreventMobileRedirectEnabled(changes.settings.newValue)
-  void syncPreventMobileRedirectRule(preventMobileRedirectEnabled)
+  void applyPreventMobileRedirectSetting(changes.settings.newValue)
+  // UPOS 手动线路重写在每次设置变化时重算：自动模式在这里会清空规则，
+  // 交由页面内 route B 挑选候选。
   void syncUposRedirectRule(changes.settings.newValue || {})
 })
 
@@ -89,20 +108,8 @@ initWbiKeys().catch((error) => {
   console.error('[BewlyCat] WBI keys initialization error:', error)
 })
 
-// 工具栏图标点击 → 在当前 B 站标签打开页面内设置面板；不在 B 站则新开 B 站首页。
-browser.action?.onClicked.addListener(async (tab) => {
-  try {
-    const url = tab?.url ?? ''
-    const isBilibili = /^https?:\/\/(?:[a-z0-9-]+\.)*bilibili\.com/i.test(url)
-    if (tab?.id != null && isBilibili)
-      await browser.tabs.sendMessage(tab.id, { type: 'BEWLY_OPEN_SETTINGS' })
-    else
-      await browser.tabs.create({ url: 'https://www.bilibili.com' })
-  }
-  catch (error) {
-    console.error('[BewlyIris] 工具栏点击打开设置失败:', error)
-  }
-})
+// 工具栏图标点击由 settingsPage 统一处理（setupSettingsPage 注册 action.onClicked
+// 打开独立设置页），此处不再重复注册，避免一次点击触发两条路径。
 
 function isExtensionUri(url: string) {
   return new URL(url).origin === new URL(browser.runtime.getURL('')).origin
@@ -119,7 +126,7 @@ if (isFirefoxBuild) {
         for (const header of details.requestHeaders || []) {
           const headerName = header.name.toLowerCase()
           if (headerName === 'user-agent') {
-            requestHeaders.push({ name: header.name, value: BILIBILI_DESKTOP_USER_AGENT })
+            requestHeaders.push({ name: header.name, value: getBilibiliDesktopNavigatorValues(header.value || navigator.userAgent).userAgent })
             hasUserAgent = true
           }
           else if (headerName === 'sec-ch-ua-mobile') {
@@ -134,7 +141,7 @@ if (isFirefoxBuild) {
         }
 
         if (!hasUserAgent)
-          requestHeaders.push({ name: 'User-Agent', value: BILIBILI_DESKTOP_USER_AGENT })
+          requestHeaders.push({ name: 'User-Agent', value: getBilibiliDesktopNavigatorValues(navigator.userAgent).userAgent })
 
         return { ...details, requestHeaders }
       }
@@ -182,6 +189,7 @@ if (isFirefoxBuild) {
 }
 
 // Setup all message listeners
+setupSettingsPage()
 setupSettingsStorageCoordinator()
 setupSettingsCloudSync()
 setupApiMsgListeners()
@@ -191,3 +199,7 @@ setupTopBarStateBroker()
 setupWatchLaterStateBroker()
 setupContentScriptRefreshPrompt()
 setupLoginStateWatcher()
+onMessage(GET_BROWSER_INFO_MESSAGE, getExtensionBrowserInfo)
+
+// 动态列表缓存已随「想看」移除，清理旧版本留在 IndexedDB 中的缓存。
+indexedDB.deleteDatabase('bewlycat-cache').onerror = () => {}

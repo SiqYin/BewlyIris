@@ -16,10 +16,13 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  /** 每次点击都会触发，包括修饰键和由浏览器原生打开的情况。 */
+  (e: 'activate', value: MouseEvent): void
+  /** 仅在 customClickEvent 接管打开行为时触发。 */
   (e: 'click', value: MouseEvent): void
 }>()
 
-const { openIframeDrawer } = useBewlyApp()
+const { openIframeDrawer, openVideoDialog } = useBewlyApp()
 
 const processedHref = computed(() => {
   if (!props.href)
@@ -69,6 +72,8 @@ function handleClick(event: MouseEvent) {
     event.stopPropagation()
   }
 
+  emit('activate', event)
+
   if (props.customClickEvent) {
     if (!props.customClickEventIncludesModifiers && (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey))
       return
@@ -102,6 +107,14 @@ function handleClick(event: MouseEvent) {
     event.preventDefault()
     if (props.href) {
       openIframeDrawer(processedHref.value)
+    }
+    return
+  }
+
+  if (openMode.value === 'dialog') {
+    event.preventDefault()
+    if (props.href) {
+      openVideoDialog(processedHref.value)
     }
     return
   }

@@ -2,6 +2,7 @@ import { onScopeDispose } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 
+import { momentCommentSort } from '~/logic'
 import api from '~/utils/api'
 import { getCSRF, getUserID } from '~/utils/main'
 
@@ -44,6 +45,9 @@ export function useMomentComments(
   const { t } = useI18n()
   const toast = useToast()
   let disposed = false
+  // 评论区每次重新挂载都会清空数据，此时沿用上次选择的排序。
+  if (!state.comments.length && !state.page && (momentCommentSort.value === 0 || momentCommentSort.value === 1))
+    state.sort = momentCommentSort.value
   onScopeDispose(() => {
     disposed = true
     state.comments = []
@@ -110,10 +114,13 @@ export function useMomentComments(
     }
   }
 
-  async function changeSort(sort: CommentSort) {
+  async function changeSort(sort: CommentSort, persist = true) {
     if (disposed || state.loading || state.sort === sort)
       return
     state.sort = sort
+    // 点击热评定位时临时切到热度排序，不覆盖用户手动选择的默认排序。
+    if (persist)
+      momentCommentSort.value = sort
     state.comments = []
     state.page = 0
     state.done = false

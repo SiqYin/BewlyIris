@@ -6,16 +6,23 @@ import draggable from 'vuedraggable'
 import AppAuthorizationDialog from '~/components/AppAuthorizationDialog.vue'
 import Input from '~/components/Input.vue'
 import Radio from '~/components/Radio.vue'
+import { useBewlyApp } from '~/composables/useAppProvider'
 import { HomeSubPage } from '~/contentScripts/views/Home/types'
 import { appAuthTokens, settings } from '~/logic'
-import type { RecommendationMode, Settings, TabsPosition } from '~/logic/storage'
+import type { RecommendationModeOption, Settings, TabsPosition } from '~/logic/storage'
+import { MIN_RECOMMENDATION_MODE_SWITCHER_OPTIONS } from '~/logic/storage'
 import { useMainStore } from '~/stores/mainStore'
 import { hasValidAppAuthTokens, revokeAccessKey } from '~/utils/authProvider'
+import {
+  applyRecommendationModeOption,
+  createRecommendationModeOptions,
+  getRecommendationModeOption,
+} from '~/utils/recommendationMode'
 
 import SettingsItem from '../../components/SettingsItem.vue'
 import SettingsItemGroup from '../../components/SettingsItemGroup.vue'
 import SettingsSegmentedControl from '../../components/SettingsSegmentedControl.vue'
-import SearchPage from '../SearchPage/SearchPage.vue'
+import SettingsToggleTag from '../../components/SettingsToggleTag.vue'
 import FilterByTitleTable from './components/FilterByTitleTable.vue'
 import FilterByUserTable from './components/FilterByUserTable.vue'
 
@@ -23,11 +30,28 @@ const mainStore = useMainStore()
 const { t } = useI18n()
 const toast = useToast()
 
-const recommendationModeOptions = computed<{ label: string, value: RecommendationMode }[]>(() => [
-  { label: 'Web', value: 'web' },
-  { label: t('settings.recommendation_mode_web_no_cookie'), value: 'webNoCookie' },
-  { label: 'App', value: 'app' },
-])
+const recommendationModeOptions = computed(() => createRecommendationModeOptions(t))
+const recommendationModeOption = computed({
+  get: () => getRecommendationModeOption(),
+  set: option => applyRecommendationModeOption(option),
+})
+
+const recommendationModeOptionIcons: Record<RecommendationModeOption, string> = {
+  web: 'i-tabler-world',
+  webNoCookie: 'i-tabler-spy',
+  appSingle: 'i-tabler-layout-list',
+  appDouble: 'i-tabler-layout-grid',
+}
+
+function getRecommendationModeLabel(mode: RecommendationModeOption) {
+  return recommendationModeOptions.value.find(option => option.value === mode)?.label ?? mode
+}
+
+function handleToggleRecommendationModeSwitcherOption(item: Settings['recommendationModeSwitcherOptions'][number], visible: boolean) {
+  if (!visible && settings.value.recommendationModeSwitcherOptions.filter(option => option.visible).length <= MIN_RECOMMENDATION_MODE_SWITCHER_OPTIONS)
+    return
+  item.visible = visible
+}
 
 const followingUploaderSortOptions = computed<{ label: string, value: Settings['followingUploaderSort'] }[]>(() => [
   { label: t('settings.following_sort_updated'), value: 'updated' },
@@ -39,8 +63,13 @@ const homeTabsPositionOptions = computed<{ label: string, value: TabsPosition }[
   { label: t('common.position.center'), value: 'center' },
 ])
 
-const showSearchPageModeSharedSettings = ref<boolean>(false)
 const showQRCodeDialog = ref<boolean>(false)
+const { openSettings } = useBewlyApp()
+
+// 搜索页模式与搜索页共用同一组设置，跳到搜索页设置修改，不在这里再嵌一份。
+function openSearchPageSettings() {
+  openSettings({ menu: 'BewlyPages', secondaryPage: 'search', targetTitleKey: 'settings.plugin.search' })
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -48,8 +77,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const appAccessToken = computed(() => appAuthTokens.value.accessToken)
 
-function handleRecommendationModeChange(mode: RecommendationMode) {
-  if (mode === 'app' && !hasValidAppAuthTokens())
+function handleRecommendationModeChange(option: RecommendationModeOption) {
+  if ((option === 'appSingle' || option === 'appDouble') && !hasValidAppAuthTokens())
     handleAuthorize()
 }
 
@@ -148,24 +177,101 @@ function resetHomeTabs() {
   })
 }
 
-function handleToggleHomeTab(tab: any) {
-  // Prevent disabling all tabs if there is only one
-  if (settings.value.homePageTabVisibilityList.filter(tab => tab.visible === true).length > 1)
-    tab.visible = !tab.visible
-  else
-    tab.visible = true
+function getHomeTabLabel(page: HomeSubPage) {
+  return t(mainStore.homeTabs.find(tab => tab.page === page)?.i18nKey ?? '')
+}
+
+function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number], visible: boolean) {
+  // 至少保留一个可见标签
+  if (!visible && settings.value.homePageTabVisibilityList.filter(item => item.visible).length <= 1)
+    return
+  tab.visible = visible
 }
 </script>
 
 <template>
   <div>
+    <SettingsItemGroup :title="$t('settings.group_search_page_mode')">
+      <SettingsItem :title="$t('settings.use_search_page_mode')" right-width="auto">
+        <Radio v-model="settings.useSearchPageModeOnHomePage" />
+      </SettingsItem>
+      <template v-if="settings.useSearchPageModeOnHomePage">
+        <SettingsItem :title="$t('settings.settings_shared_with_the_search_page')" right-width="auto">
+          <template #desc>
+            <span class="bew-warning-text">{{ $t('settings.settings_shared_with_the_search_page_desc') }}</span>
+          </template>
+          <Button type="secondary" center @click="openSearchPageSettings">
+            {{ $t('settings.btn.open_settings') }}
+          </Button>
+        </SettingsItem>
+
+        <SettingsItem :title="$t('settings.search_page_mode_wallpaper_fixed')" right-width="auto">
+          <Radio v-model="settings.searchPageModeWallpaperFixed" />
+        </SettingsItem>
+      </template>
+    </SettingsItemGroup>
+
+    <SettingsItemGroup
+      :title="$t('settings.group_home_tabs')"
+    >
+      <SettingsItem
+        :title="$t('settings.home_tabs_adjustment')"
+        :desc="$t('settings.home_tabs_adjustment_desc')"
+        right-width="auto"
+      >
+        <template #title>
+          <div flex="~ gap-4 items-center">
+            {{ $t('settings.home_tabs_adjustment') }}
+            <Button size="small" type="secondary" @click="resetHomeTabs">
+              <template #left>
+                <div i-mingcute:back-line />
+              </template>
+              {{ $t('common.operation.reset') }}
+            </Button>
+          </div>
+        </template>
+
+        <template #bottom>
+          <draggable
+            v-model="settings.homePageTabVisibilityList"
+            item-key="page"
+            class="settings-draggable-tags"
+            :force-fallback="true"
+            role="group"
+            :aria-label="$t('settings.home_tabs_adjustment')"
+          >
+            <template #item="{ element }">
+              <SettingsToggleTag
+                :model-value="element.visible"
+                :label="getHomeTabLabel(element.page)"
+                @update:model-value="handleToggleHomeTab(element, $event)"
+              />
+            </template>
+          </draggable>
+        </template>
+      </SettingsItem>
+      <SettingsItem :title="$t('settings.home_tabs_position')" right-width="auto">
+        <SettingsSegmentedControl
+          v-model="settings.homeTabsPosition"
+          :label="$t('settings.home_tabs_position')"
+          :options="homeTabsPositionOptions"
+        />
+      </SettingsItem>
+      <SettingsItem :title="$t('settings.fixed_home_tabs_on_home_page')" right-width="auto">
+        <Radio v-model="settings.fixedHomeTabsOnHomePage" />
+      </SettingsItem>
+      <SettingsItem :title="$t('settings.enable_grid_layout_switcher')" right-width="auto">
+        <Radio v-model="settings.enableGridLayoutSwitcher" />
+      </SettingsItem>
+    </SettingsItemGroup>
+
     <SettingsItemGroup :title="$t('settings.group_recommendation_mode')">
       <SettingsItem :title="$t('settings.recommendation_mode')" right-width="auto">
         <template #desc>
           <p>{{ $t('settings.recommendation_mode_desc') }}</p>
         </template>
         <SettingsSegmentedControl
-          v-model="settings.recommendationMode"
+          v-model="recommendationModeOption"
           :label="$t('settings.recommendation_mode')"
           :options="recommendationModeOptions"
           @change="handleRecommendationModeChange"
@@ -178,6 +284,32 @@ function handleToggleHomeTab(tab: any) {
         right-width="auto"
       >
         <Radio v-model="settings.showRecommendationModeSwitcher" />
+      </SettingsItem>
+
+      <SettingsItem
+        v-if="settings.showRecommendationModeSwitcher"
+        :title="$t('settings.recommendation_mode_switcher_options')"
+        :desc="$t('settings.recommendation_mode_switcher_options_desc')"
+      >
+        <template #bottom>
+          <draggable
+            v-model="settings.recommendationModeSwitcherOptions"
+            item-key="mode"
+            class="settings-draggable-tags"
+            :force-fallback="true"
+            role="group"
+            :aria-label="$t('settings.recommendation_mode_switcher_options')"
+          >
+            <template #item="{ element }">
+              <SettingsToggleTag
+                :model-value="element.visible"
+                :label="getRecommendationModeLabel(element.mode)"
+                :icon="recommendationModeOptionIcons[element.mode as RecommendationModeOption]"
+                @update:model-value="handleToggleRecommendationModeSwitcherOption(element, $event)"
+              />
+            </template>
+          </draggable>
+        </template>
       </SettingsItem>
 
       <SettingsItem
@@ -225,94 +357,54 @@ function handleToggleHomeTab(tab: any) {
       />
     </SettingsItemGroup>
 
-    <SettingsItemGroup
-      :title="$t('settings.group_home_tabs')"
-    >
+    <SettingsItemGroup :title="$t('settings.group_immersive_mode')">
       <SettingsItem
-        :title="$t('settings.home_tabs_adjustment')"
-        :desc="$t('settings.home_tabs_adjustment_desc')"
+        :title="$t('settings.show_immersive_mode_entry')"
+        :desc="$t('settings.show_immersive_mode_entry_desc')"
         right-width="auto"
       >
-        <template #title>
-          <div flex="~ gap-4 items-center">
-            {{ $t('settings.home_tabs_adjustment') }}
-            <Button size="small" type="secondary" @click="resetHomeTabs">
-              <template #left>
-                <div i-mingcute:back-line />
-              </template>
-              {{ $t('common.operation.reset') }}
-            </Button>
-          </div>
-        </template>
-
-        <template #bottom>
-          <draggable
-            v-model="settings.homePageTabVisibilityList"
-            item-key="page"
-            :component-data="{ style: 'display: flex; gap: 0.5rem; flex-wrap: wrap;' }"
-          >
-            <template #item="{ element }">
-              <div
-                class="bew-settings-option--lift"
-                flex="~ gap-2 items-center" p="x-4 y-2" bg="$bew-fill-1" rounded="$bew-radius" cursor-all-scroll
-                duration-300
-                :style="{
-                  background: element.visible ? 'var(--bew-theme-color-20)' : 'var(--bew-fill-1)',
-                  color: element.visible ? 'var(--bew-theme-color)' : 'var(--bew-text-1)',
-                }"
-                @click="handleToggleHomeTab(element)"
-              >
-                {{ $t(mainStore.homeTabs.find(tab => tab.page === element.page)?.i18nKey ?? '') }}
-              </div>
-            </template>
-          </draggable>
-        </template>
+        <Radio v-model="settings.showImmersiveModeEntry" />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.home_tabs_position')" right-width="auto">
-        <SettingsSegmentedControl
-          v-model="settings.homeTabsPosition"
-          :label="$t('settings.home_tabs_position')"
-          :options="homeTabsPositionOptions"
-        />
-      </SettingsItem>
-      <SettingsItem :title="$t('settings.fixed_home_tabs_on_home_page')" right-width="auto">
-        <Radio v-model="settings.fixedHomeTabsOnHomePage" />
-      </SettingsItem>
-    </SettingsItemGroup>
 
-    <SettingsItemGroup :title="$t('settings.group_search_page_mode')">
-      <SettingsItem :title="$t('settings.use_search_page_mode')" right-width="auto">
-        <Radio v-model="settings.useSearchPageModeOnHomePage" />
-      </SettingsItem>
-      <template v-if="settings.useSearchPageModeOnHomePage">
-        <SettingsItem :title="$t('settings.settings_shared_with_the_search_page')" right-width="auto">
-          <template #desc>
-            <span class="bew-warning-text">{{ $t('settings.settings_shared_with_the_search_page_desc') }}</span>
-          </template>
-          <Button type="secondary" center @click="showSearchPageModeSharedSettings = true">
-            {{ $t('settings.btn.open_settings') }}
-          </Button>
-
-          <Dialog
-            v-if="showSearchPageModeSharedSettings"
-            width="80%"
-            max-width="900px"
-            content-height="64vh"
-            :show-footer="false"
-            :title="$t('settings.settings_shared_with_the_search_page')"
-            append-to-bewly-body
-            @close="showSearchPageModeSharedSettings = false"
-          >
-            <template #desc>
-              <span class="bew-warning-text">{{ $t('settings.settings_shared_with_the_search_page_desc') }}</span>
-            </template>
-
-            <SearchPage />
-          </Dialog>
+      <template v-if="settings.showImmersiveModeEntry">
+        <SettingsItem
+          :title="$t('settings.immersive_wheel_switch')"
+          :desc="$t('settings.immersive_wheel_switch_desc')"
+          right-width="auto"
+        >
+          <Radio v-model="settings.immersiveWheelSwitch" />
         </SettingsItem>
 
-        <SettingsItem :title="$t('settings.search_page_mode_wallpaper_fixed')" right-width="auto">
-          <Radio v-model="settings.searchPageModeWallpaperFixed" />
+        <SettingsItem
+          :title="$t('settings.immersive_keyboard_switch')"
+          :desc="$t('settings.immersive_keyboard_switch_desc')"
+          right-width="auto"
+        >
+          <Radio v-model="settings.immersiveKeyboardSwitch" />
+        </SettingsItem>
+
+        <SettingsItem
+          :title="$t('settings.immersive_auto_play')"
+          :desc="$t('settings.immersive_auto_play_desc')"
+          right-width="auto"
+        >
+          <Radio v-model="settings.immersiveAutoPlay" />
+        </SettingsItem>
+
+        <SettingsItem
+          :title="$t('settings.immersive_auto_next')"
+          :desc="$t('settings.immersive_auto_next_desc')"
+          right-width="auto"
+        >
+          <Radio v-model="settings.immersiveAutoNext" />
+        </SettingsItem>
+
+        <SettingsItem
+          :title="$t('settings.immersive_preload_next')"
+          :desc="$t('settings.immersive_preload_next_desc')"
+          right-width="auto"
+        >
+          <Radio v-model="settings.immersivePreloadNext" />
         </SettingsItem>
       </template>
     </SettingsItemGroup>
@@ -321,6 +413,13 @@ function handleToggleHomeTab(tab: any) {
       :title="$t('settings.group_recommendation_filters')"
       :desc="$t('settings.group_recommendation_filters_desc')"
     >
+      <SettingsItem
+        :title="$t('settings.show_recommendation_filter_entry')"
+        :desc="$t('settings.show_recommendation_filter_entry_desc')"
+        right-width="auto"
+      >
+        <Radio v-model="settings.showRecommendationFilterEntry" />
+      </SettingsItem>
       <SettingsItem
         :title="$t('settings.show_recommendation_filter_risk_warning')"
         :desc="$t('settings.show_recommendation_filter_risk_warning_desc')"
@@ -479,6 +578,18 @@ function handleToggleHomeTab(tab: any) {
 </template>
 
 <style lang="scss" scoped>
+// 可拖拽排序的开关标签列表。使用 Sortable 的 fallback 拖拽：Firefox 不会在 <button> 上触发
+// 原生 dragstart，且 fallback 会在拖动结束后拦截随之而来的 click，避免误切换可见性。
+.settings-draggable-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bew-space-2);
+
+  :deep(.settings-toggle-tag) {
+    cursor: grab;
+  }
+}
+
 .unrestricted-width-settings-item {
   :deep(.left-content) {
     --uno: w-full;

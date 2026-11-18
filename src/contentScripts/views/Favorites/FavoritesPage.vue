@@ -8,7 +8,7 @@ import type { ContextMenuOption } from '~/components/ContextMenu.vue'
 import LiquidSegmentIndicator from '~/components/LiquidSegmentIndicator.vue'
 import Radio from '~/components/Radio.vue'
 import type { FavoriteResource } from '~/components/TopBar/types'
-import type { Video } from '~/components/VideoCard/types'
+import type { Video, VideoCardRemovedState } from '~/components/VideoCard/types'
 import VideoCardGrid from '~/components/VideoCardGrid.vue'
 import { useBewlyApp } from '~/composables/useAppProvider'
 import { useConfirmDialog } from '~/composables/useConfirmDialog'
@@ -19,6 +19,7 @@ import type { FavoritesCategoryResult, List as CategoryItem } from '~/models/vid
 import type { CollectedFavoriteSeason, CollectedFavoriteSeasonsResult, FavoriteSeasonMedia } from '~/models/video/favoriteSeason'
 import { useTopBarStore } from '~/stores/topBarStore'
 import api from '~/utils/api'
+import { localizeBilibiliUrl } from '~/utils/bilibiliLocale'
 import {
   FAVORITE_SEASON_PAGE_SIZE,
   fetchFavoriteSeasonPage,
@@ -64,6 +65,12 @@ const articleFavoriteOffset = ref<string>('')
 const isBatchManaging = ref<boolean>(false)
 const isBatchOperating = ref<boolean>(false)
 const selectedResourceKeys = ref<string[]>([])
+/**
+ * 卡片取消收藏遮罩状态：confirming 等待确认（尚未调用接口），removing 取消收藏中，
+ * removed 已取消收藏但保留原位可还原，restoring 还原中；记录所属收藏夹以便还原
+ */
+type RemoveStatus = 'confirming' | 'removing' | 'removed' | 'restoring'
+const removeStatuses = reactive(new Map<string, { categoryId: number, status: RemoveStatus }>())
 const targetCategory = ref<CategoryItem>()
 const batchTransferDialogVisible = ref<boolean>(false)
 const batchTransferAction = ref<BatchTransferAction>('copy')
@@ -615,6 +622,7 @@ function toggleBatchManage() {
   if (!canBatchManage.value)
     return
 
+  flushRemovedResources()
   exitSidebarManage()
   closeItemMenu()
   isBatchManaging.value = true
@@ -634,6 +642,25 @@ function removeResourcesFromList(categoryId: number, resourceKeys: string[], req
       favoriteResources.splice(index, 1)
   }
   selectedResourceKeys.value = selectedResourceKeys.value.filter(key => !selectedKeys.has(key))
+}
+
+function spliceResourceFromList(resourceKey: string) {
+  const index = favoriteResources.findIndex(item => getFavoriteResourceKey(item) === resourceKey)
+  if (index !== -1)
+    favoriteResources.splice(index, 1)
+}
+
+/** 批量管理前清理遮罩：已取消收藏的卡片移出列表，避免被再次选中；待确认的直接取消 */
+function flushRemovedResources() {
+  for (const [key, state] of removeStatuses) {
+    if (state.status === 'confirming') {
+      removeStatuses.delete(key)
+    }
+    else if (state.status === 'removed') {
+      removeStatuses.delete(key)
+      spliceResourceFromList(key)
+    }
+  }
 }
 
 function increaseTargetCategoryCount(categoryId: number, count: number) {
@@ -758,6 +785,7 @@ async function handleBatchTransferConfirm() {
 function resetContentState() {
   contentRequestVersion += 1
   resetBatchSelection()
+  removeStatuses.clear()
   currentPageNum.value = 1
   favoriteResources.length = 0
   favoriteArticles.length = 0
@@ -877,7 +905,9 @@ async function getFavoriteResources(
     : []
   if (searchScope.value === 'current')
     activatedCategoryCover.value = res.data.info.cover
-  favoriteResources.push(...pageItems)
+  // 取消收藏/撤销会让服务器页边界移动，按资源标识去重兜底
+  const existingKeys = new Set(favoriteResources.map(getFavoriteResourceKey))
+  favoriteResources.push(...pageItems.filter(item => !existingKeys.has(getFavoriteResourceKey(item))))
   noMoreContent.value = !res.data.has_more || pageItems.length === 0
 }
 
@@ -1017,6 +1047,14 @@ function handleSearchScopeChange() {
   handleSearch()
 }
 
+function clearSearchKeyword() {
+  if (!keyword.value)
+    return
+
+  keyword.value = ''
+  handleSearch()
+}
+
 async function handlePlayAll() {
   if (favoriteView.value === 'article' || searchScope.value === 'all' || isResolvingSeasonPlayAll.value)
     return
@@ -1050,38 +1088,124 @@ async function handlePlayAll() {
   }
 
   if (selectedCategory.value)
-    openLinkToNewTab(`https://www.bilibili.com/list/ml${selectedCategory.value.id}`)
+    openLinkToNewTab(localizeBilibiliUrl(`https://www.bilibili.com/list/ml${selectedCategory.value.id}`))
 }
 
 function jumpToLoginPage() {
   location.href = 'https://passport.bilibili.com/login'
 }
 
-async function handleUnfavorite(favoriteResource: FavoriteResource) {
-  if (!selectedCategory.value || isBatchOperating.value)
+// 取消收藏先在卡片上二次确认，确认后才调用接口
+function handleUnfavorite(favoriteResource: FavoriteResource) {
+  const resourceKey = getFavoriteResourceKey(favoriteResource)
+  if (!selectedCategory.value || removeStatuses.has(resourceKey))
     return
 
-  const categoryId = selectedCategory.value.id
+  removeStatuses.set(resourceKey, { categoryId: selectedCategory.value.id, status: 'confirming' })
+}
+
+function cancelUnfavorite(favoriteResource: FavoriteItem) {
+  const resourceKey = getFavoriteResourceKey(favoriteResource)
+  if (removeStatuses.get(resourceKey)?.status === 'confirming')
+    removeStatuses.delete(resourceKey)
+}
+
+async function confirmUnfavorite(favoriteResource: FavoriteItem) {
+  const resourceKey = getFavoriteResourceKey(favoriteResource)
+  const removeState = removeStatuses.get(resourceKey)
+  if (!removeState || removeState.status !== 'confirming')
+    return
+
+  const { categoryId } = removeState
   const requestVersion = contentRequestVersion
   const accountId = getUserID()
-  isBatchOperating.value = true
+  removeState.status = 'removing'
+  let success = false
   try {
-    const result = await showConfirmDialog(t('favorites.unfavorite_confirm'))
-    if (!result || requestVersion !== contentRequestVersion || getUserID() !== accountId)
-      return
-
     const res = await api.favorite.patchDelFavoriteResources({
-      resources: `${favoriteResource.id}:${favoriteResource.type}`,
+      resources: resourceKey,
       media_id: categoryId,
       csrf: getCSRF(),
     })
-    if (res.code === 0 && getUserID() === accountId) {
-      removeResourcesFromList(categoryId, [getFavoriteResourceKey(favoriteResource)], requestVersion)
-      notifyTopBarFavoritesChanged()
+    if (getUserID() !== accountId)
+      return
+    if (res.code !== 0) {
+      toast.error(res.message)
+      return
     }
+
+    success = true
+    const category = favoriteCategories.find(item => item.id === categoryId)
+    if (category)
+      category.media_count = Math.max(0, category.media_count - 1)
+    // 卡片保留在原位，显示还原按钮
+    if (requestVersion === contentRequestVersion)
+      removeState.status = 'removed'
+    notifyTopBarFavoritesChanged()
+  }
+  catch (error) {
+    console.error('取消收藏失败:', error)
   }
   finally {
-    isBatchOperating.value = false
+    if (!success && removeStatuses.get(resourceKey) === removeState)
+      removeStatuses.delete(resourceKey)
+  }
+}
+
+async function restoreFavorite(favoriteResource: FavoriteItem) {
+  const resourceKey = getFavoriteResourceKey(favoriteResource)
+  const removeState = removeStatuses.get(resourceKey)
+  if (!removeState || removeState.status !== 'removed')
+    return
+
+  const { categoryId } = removeState
+  const requestVersion = contentRequestVersion
+  const accountId = getUserID()
+  removeState.status = 'restoring'
+  try {
+    const res = await api.favorite.updateVideoFavorites({
+      rid: favoriteResource.id,
+      type: favoriteResource.type,
+      add_media_ids: String(categoryId),
+      del_media_ids: '',
+      csrf: getCSRF(),
+    })
+    if (getUserID() !== accountId)
+      return
+    if (res.code !== 0) {
+      toast.error(res.message)
+      return
+    }
+
+    const category = favoriteCategories.find(item => item.id === categoryId)
+    if (category)
+      category.media_count += 1
+    if (requestVersion === contentRequestVersion)
+      removeStatuses.delete(resourceKey)
+    notifyTopBarFavoritesChanged()
+  }
+  catch (error) {
+    console.error('重新收藏失败:', error)
+  }
+  finally {
+    if (removeState.status === 'restoring')
+      removeState.status = 'removed'
+  }
+}
+
+function getFavoriteRemovedState(item: FavoriteItem): VideoCardRemovedState | undefined {
+  const removeState = removeStatuses.get(getFavoriteResourceKey(item))
+  if (!removeState)
+    return undefined
+
+  const confirming = removeState.status === 'confirming' || removeState.status === 'removing'
+  return {
+    message: confirming ? t('favorites.unfavorite_item_confirm') : t('favorites.unfavorited'),
+    confirming,
+    pending: removeState.status === 'removing' || removeState.status === 'restoring',
+    onConfirm: () => void confirmUnfavorite(item),
+    onCancel: () => cancelUnfavorite(item),
+    onUndo: () => void restoreFavorite(item),
   }
 }
 
@@ -1171,6 +1295,7 @@ function transformFavoriteArticle(item: FavoriteArticle) {
     cover: getFavoriteArticleCover(item),
     author: item.author?.name || '',
     authorMid: mid != null && mid !== '' ? Number(mid) : undefined,
+    authorFace: item.author?.face || undefined,
     view: item.stat?.view || undefined,
     like: item.stat?.like || undefined,
     publishTime: item.pub_time || undefined,
@@ -1189,41 +1314,41 @@ function transformFavoriteArticle(item: FavoriteArticle) {
         v-if="favoriteView === 'video'"
         class="favorites-toolbar bew-toolbar-controls"
       >
-        <div v-if="!isBatchManaging" class="toolbar-search-group">
-          <Select v-model="searchScope" class="search-scope-select" :options="searchScopeOptions" @change="handleSearchScopeChange" />
-          <Input
-            v-model="keyword"
-            class="favorites-search-input"
-            :placeholder="searchScope === 'all' ? t('favorites.global_search_placeholder') : t('favorites.search_placeholder')"
-            :aria-label="searchScope === 'all' ? t('favorites.global_search_placeholder') : t('favorites.search_placeholder')"
-            @enter="handleSearch"
-          />
-          <Button
-            type="secondary"
-            :disabled="searchScope === 'all' && !keyword.trim()"
-            :aria-label="$t('common.search')"
-            @click="handleSearch"
-          >
-            <template #left>
-              <div i-tabler:search />
-            </template>
-          </Button>
-        </div>
-
-        <div v-if="canBatchManage" class="toolbar-action-group">
-          <Button
-            v-if="canBatchManage"
-            :type="isBatchManaging ? 'tertiary' : 'secondary'"
-            :disabled="isBatchOperating"
-            @click="toggleBatchManage"
-          >
-            <template #left>
-              <div :class="isBatchManaging ? 'i-tabler:x' : 'i-tabler:list-check'" />
-            </template>
-            {{ isBatchManaging ? t('common.operation.cancel') : t('favorites.batch_manage') }}
-          </Button>
-
-          <template v-if="isBatchManaging">
+        <Transition name="fade">
+          <div v-if="!isBatchManaging" key="search" class="toolbar-search-group">
+            <Select v-model="searchScope" class="search-scope-select" :options="searchScopeOptions" @change="handleSearchScopeChange" />
+            <Input
+              v-model="keyword"
+              class="favorites-search-input"
+              :placeholder="searchScope === 'all' ? t('favorites.global_search_placeholder') : t('favorites.search_placeholder')"
+              :aria-label="searchScope === 'all' ? t('favorites.global_search_placeholder') : t('favorites.search_placeholder')"
+              @enter="handleSearch"
+            >
+              <template #suffix>
+                <button
+                  v-if="keyword"
+                  type="button"
+                  class="bew-toolbar-search-clear"
+                  :aria-label="t('favorites.clear_search')"
+                  :title="t('favorites.clear_search')"
+                  @click="clearSearchKeyword"
+                >
+                  <span i-mingcute:close-line aria-hidden="true" />
+                </button>
+              </template>
+            </Input>
+            <Button
+              type="secondary"
+              :disabled="searchScope === 'all' && !keyword.trim()"
+              @click="handleSearch"
+            >
+              <template #left>
+                <div i-tabler:search />
+              </template>
+              {{ t('common.search') }}
+            </Button>
+          </div>
+          <div v-else key="batch" class="toolbar-batch-group">
             <Button
               type="secondary"
               :disabled="favoriteResources.length === 0 || isBatchOperating"
@@ -1267,7 +1392,20 @@ function transformFavoriteArticle(item: FavoriteArticle) {
               </template>
               {{ t('favorites.batch_unfavorite') }}
             </Button>
-          </template>
+          </div>
+        </Transition>
+
+        <div v-if="canBatchManage" class="toolbar-action-group">
+          <Button
+            :type="isBatchManaging ? 'tertiary' : 'secondary'"
+            :disabled="isBatchOperating"
+            @click="toggleBatchManage"
+          >
+            <template #left>
+              <div :class="isBatchManaging ? 'i-tabler:x' : 'i-tabler:list-check'" />
+            </template>
+            {{ isBatchManaging ? t('common.operation.cancel') : t('favorites.batch_manage') }}
+          </Button>
         </div>
       </div>
 
@@ -1311,6 +1449,8 @@ function transformFavoriteArticle(item: FavoriteArticle) {
           :more-btn="favoriteView === 'video' && !isBatchManaging"
           :hide-author="favoriteView === 'season'"
           :card-click-handler="isBatchManaging ? handleFavoriteCardClick : undefined"
+          :show-preview="!isBatchManaging"
+          :get-removed-state="favoriteView === 'video' ? getFavoriteRemovedState : undefined"
           :cover-top-left-always-visible="isBatchManaging"
           enable-row-padding
           @refresh="() => handlePageRefresh?.()"
@@ -2156,6 +2296,7 @@ function transformFavoriteArticle(item: FavoriteArticle) {
 }
 
 .favorites-toolbar {
+  position: relative;
   display: flex;
   gap: var(--bew-space-2);
   align-items: center;
@@ -2165,9 +2306,19 @@ function transformFavoriteArticle(item: FavoriteArticle) {
   width: 100%;
   max-width: 100%;
   margin: var(--bew-space-3) 0;
+
+  // 搜索组与批量组在同一槽位交叉淡入淡出：离场一侧脱离文档流，
+  // 布局自第一帧起就由进场一侧决定，右侧开关按钮始终不移动，
+  // 避免批量操作先出现在右侧再跳回左侧的两段式闪现。
+  .fade-leave-active {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
 }
 
 .toolbar-search-group,
+.toolbar-batch-group,
 .toolbar-action-group {
   display: flex;
   flex-wrap: wrap;

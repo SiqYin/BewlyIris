@@ -6,6 +6,7 @@ import { useHomeTabState } from '~/composables/useHomeTabState'
 import type { GridLayoutType } from '~/logic'
 import type { List as VideoItem, TrendingResult } from '~/models/video/trending'
 import api from '~/utils/api'
+import type { ApiErrorReportSource } from '~/utils/apiDiagnostics'
 import { decodeHtmlEntities } from '~/utils/htmlDecode'
 
 interface VideoElement {
@@ -28,6 +29,8 @@ const isLoading = ref<boolean>(false)
 const videoList = tabState.ref<VideoElement[]>('videoList', [])
 const pn = tabState.ref<number>('pn', 1)
 const noMoreContent = tabState.ref<boolean>('noMoreContent', false)
+const requestFailed = tabState.ref<boolean>('requestFailed', false)
+const errorReportSource: ApiErrorReportSource = { scene: '热门视频', queries: ['getPopularVideos'] }
 const hasLoaded = tabState.ref<boolean>('hasLoaded', false)
 const { handleReachBottom, handlePageRefresh } = useBewlyApp()
 // 刷新会作废仍在进行的加载更多，避免旧页拼进新列表后重复请求同一页、产生重复卡片。
@@ -47,6 +50,7 @@ async function initData() {
 
   const version = ++requestVersion
   noMoreContent.value = false
+  requestFailed.value = false
   videoList.value = []
   pn.value = 1
   hasLoaded.value = false
@@ -95,8 +99,10 @@ async function getData(version = requestVersion) {
   isLoading.value = true
   try {
     const loaded = await getTrendingVideos(version)
-    if (isRequestCurrent(version) && loaded)
-      hasLoaded.value = true
+    if (isRequestCurrent(version)) {
+      requestFailed.value = !loaded
+      hasLoaded.value ||= loaded
+    }
   }
   finally {
     if (isRequestCurrent(version)) {
@@ -181,8 +187,10 @@ async function handleLoadMore() {
   isLoading.value = true
   try {
     const loaded = await getTrendingVideos(version)
-    if (isRequestCurrent(version) && loaded)
-      hasLoaded.value = true
+    if (isRequestCurrent(version)) {
+      requestFailed.value = !loaded
+      hasLoaded.value ||= loaded
+    }
   }
   finally {
     if (isRequestCurrent(version))
@@ -198,6 +206,14 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({ initData })
+
+function getItemDisplayData(item: VideoElement) {
+  return item.displayData
+}
+
+function getItemKey(item: VideoElement) {
+  return item.uniqueId
+}
 </script>
 
 <template>
@@ -206,8 +222,10 @@ defineExpose({ initData })
     :grid-layout="gridLayout"
     :loading="isLoading"
     :no-more-content="noMoreContent"
-    :transform-item="(item: VideoElement) => item.displayData"
-    :get-item-key="(item: VideoElement) => item.uniqueId"
+    :request-failed="requestFailed"
+    :error-report-source="errorReportSource"
+    :transform-item="getItemDisplayData"
+    :get-item-key="getItemKey"
     show-preview
     @refresh="initData"
     @load-more="handleLoadMore"
