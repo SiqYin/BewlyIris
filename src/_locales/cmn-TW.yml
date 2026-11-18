@@ -263,7 +263,7 @@ settings:
   category_bilibili_ambilight_desc: 在播放器四周投射隨畫面變化的柔和環境光。
   category_advanced_compatibility_desc: 攔截廣告、淨化連結，並設定原版頁面和其他頁面的相容行為。
   category_advanced_maintenance_desc: 匯出備份、匯入設定或還原 BewlyIris 預設配置。
-  category_data_desc: 開啟瀏覽器雲端同步，匯出備份、匯入設定或還原 BewlyCat 預設配置。
+  category_data_desc: 開啟瀏覽器雲端同步，匯出備份、匯入設定或還原 BewlyIris 預設配置。
   maintenance:
     title: 備份與重設
     backup_title: 設定備份
@@ -1182,7 +1182,7 @@ settings:
   enable_clean_share_link: 啟用分享連結淨化
   enable_clean_share_link_desc: >
     啟用後，分享連結將自動移除追蹤參數，並可選擇是否包含影片標題。
-    此功能適用於 BewlyCat 的複製連結功能，同時也會攔截 Bilibili 原生分享按鈕的複製內容。
+    此功能適用於 BewlyIris 的複製連結功能，同時也會攔截 Bilibili 原生分享按鈕的複製內容。
   clean_share_link_include_title: 分享時包含影片標題
   clean_share_link_include_title_desc: >
     分享時在連結前新增影片標題，例如 "影片標題 https://www.bilibili.com/video/BVxxx"
@@ -1535,7 +1535,7 @@ home:
   recommendation_failed: 首頁推薦載入失敗：{reason}
   app_recommendation_failed: App 推薦資料載入失敗：{reason}
   recommendation_failure_reason:
-    background: 擴充功能背景連線已中斷，請重新整理頁面；仍然失敗時請在擴充功能管理頁重新啟用 BewlyCat
+    background: 擴充功能背景連線已中斷，請重新整理頁面；仍然失敗時請在擴充功能管理頁重新啟用 BewlyIris
     offline: 網路已中斷，請恢復連線後重新整理再試
     timeout: 請求逾時，可能是網路較慢，或代理、IPv6 線路異常，請檢查網路後重新整理再試
     network: 無法連線至 B 站伺服器，請檢查網路和代理設定，並確認廣告攔截等擴充功能沒有攔截 B 站介面
@@ -1651,7 +1651,7 @@ favorites:
   search_placeholder: 搜尋目前收藏夾
 version_reminder:
   trigger: 新版本說明
-  title: BewlyCat 已更新
+  title: BewlyIris 已更新
   current_version: 目前版本 v{version}
   description: 查看此版本的更新記錄與最新動態。確認後，此版本將不再顯示提醒。
   usage_guide: 使用說明

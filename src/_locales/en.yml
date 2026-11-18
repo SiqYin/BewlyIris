@@ -263,7 +263,7 @@ settings:
   category_bilibili_ambilight_desc: Cast soft ambient light around the player that follows the picture.
   category_advanced_compatibility_desc: Block ads, clean links, and configure compatibility with original pages and other pages.
   category_advanced_maintenance_desc: Export a backup, import settings, or restore BewlyIris defaults.
-  category_data_desc: Turn on browser cloud sync, export a backup, import settings, or restore BewlyCat defaults.
+  category_data_desc: Turn on browser cloud sync, export a backup, import settings, or restore BewlyIris defaults.
   maintenance:
     title: Backup & Reset
     backup_title: Settings backup
@@ -1038,13 +1038,13 @@ settings:
   fixed_home_tabs_on_home_page: Fix home tabs to the top
   topbar_visibility: BewlyBewly's top bar visibility
   topbar_visibility_desc: >-
-    When enabled, the BewlyCat or original Bilibili top bar is shown. When
+    When enabled, the BewlyIris or original Bilibili top bar is shown. When
     disabled, both are hidden so Bilibili Evolved and other third-party top bars
     can take over.
   use_original_bilibili_topbar: Use the original Bilibili top bar
   use_original_bilibili_topbar_desc: >-
     Only applies when top bar visibility is on. Enable it to use the original
-    Bilibili top bar; disable it to use the BewlyCat top bar.
+    Bilibili top bar; disable it to use the BewlyIris top bar.
   top_bar_mode: Top bar type
   top_bar_mode_opt:
     original: Original top bar
@@ -1124,11 +1124,11 @@ settings:
   playback_rate_step: Playback rate shortcut step
   playback_rate_step_desc: Change the rate by 0.01–1 per key press; the default is 0.25. Configure the keys in Shortcuts.
   fullscreen_wheel_volume: Mouse wheel volume in fullscreen
-  fullscreen_wheel_volume_desc: In fullscreen, BewlyCat handles the mouse wheel and changes the volume by a fixed step per notch, replacing bilibili's inconsistent native step.
+  fullscreen_wheel_volume_desc: In fullscreen, BewlyIris handles the mouse wheel and changes the volume by a fixed step per notch, replacing bilibili's inconsistent native step.
   fullscreen_wheel_volume_step: Wheel volume step
   fullscreen_wheel_volume_step_desc: Change the volume by 1–50 per notch; the default is 5.
   keyboard_volume: Arrow key volume
-  keyboard_volume_desc: BewlyCat takes over the up/down arrow keys inside the player and uses the step below; when disabled, bilibili's default (10) applies.
+  keyboard_volume_desc: BewlyIris takes over the up/down arrow keys inside the player and uses the step below; when disabled, bilibili's default (10) applies.
   keyboard_volume_step: Arrow key volume step
   keyboard_volume_step_desc: Change the volume by 1–50 per press; bilibili's default is 10.
   remember_video_quality: Remember video quality
@@ -1296,7 +1296,7 @@ settings:
   enable_clean_share_link: Enable clean share link
   enable_clean_share_link_desc: >
     When enabled, the share link will be cleaned by removing tracking parameters and optionally including the video title.
-    This applies to BewlyCat's copy link feature and intercepts Bilibili's native share button.
+    This applies to BewlyIris's copy link feature and intercepts Bilibili's native share button.
   clean_share_link_include_title: Include video title in shared link
   clean_share_link_include_title_desc: >
     When sharing, the video title will be added before the link, e.g. "Video Title https://www.bilibili.com/video/BVxxx"
@@ -1599,7 +1599,7 @@ home:
   recommendation_failed: 'Home recommendations failed to load: {reason}'
   app_recommendation_failed: 'App recommendations failed to load: {reason}'
   recommendation_failure_reason:
-    background: The extension's background connection was lost. Refresh the page; if it still fails, re-enable BewlyCat on the extensions page.
+    background: The extension's background connection was lost. Refresh the page; if it still fails, re-enable BewlyIris on the extensions page.
     offline: You're offline. Reconnect, then refresh and try again.
     timeout: The request timed out. The network may be slow, or a proxy or IPv6 route may be misbehaving. Check your network, then refresh.
     network: Couldn't reach Bilibili's servers. Check your network and proxy settings, and make sure ad blockers or other extensions aren't blocking Bilibili's API.
@@ -1715,7 +1715,7 @@ favorites:
   search_placeholder: Search for current favorites
 version_reminder:
   trigger: What's new
-  title: BewlyCat has been updated
+  title: BewlyIris has been updated
   current_version: Current version v{version}
   description: View the release notes and latest updates for this version. After confirmation, this version will not be shown again.
   usage_guide: Help & tutorials

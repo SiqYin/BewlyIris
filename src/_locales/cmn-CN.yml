@@ -263,7 +263,7 @@ settings:
   category_bilibili_ambilight_desc: 在播放器四周投射随画面变化的柔和环境光。
   category_advanced_compatibility_desc: 拦截广告、净化链接，并配置原版页面和其他页面的兼容行为。
   category_advanced_maintenance_desc: 导出备份、导入设置或恢复 BewlyIris 默认配置。
-  category_data_desc: 开启浏览器云同步，导出备份、导入设置或恢复 BewlyCat 默认配置。
+  category_data_desc: 开启浏览器云同步，导出备份、导入设置或恢复 BewlyIris 默认配置。
   maintenance:
     title: 备份与重置
     backup_title: 设置备份
@@ -914,7 +914,7 @@ settings:
   customize_css: 自定义 CSS
   customize_css_desc: |-
     如果你不熟悉 CSS，请不要修改 CSS。否则可能会导致意外的显示问题。
-    如果在你修改 CSS 后遇到任何问题，请重新安装 BewlyCat。
+    如果在你修改 CSS 后遇到任何问题，请重新安装 BewlyIris。
   logo_color: Logo 颜色
   logo_color_opt:
     white: 白
@@ -1248,7 +1248,7 @@ settings:
   enable_clean_share_link: 启用分享链接净化
   enable_clean_share_link_desc: >
     启用后，分享链接将自动移除追踪参数，并可选择是否包含视频标题。
-    此功能适用于 BewlyCat 的复制链接功能，同时也会拦截 Bilibili 原生分享按钮的复制内容。
+    此功能适用于 BewlyIris 的复制链接功能，同时也会拦截 Bilibili 原生分享按钮的复制内容。
   clean_share_link_include_title: 分享时包含视频标题
   clean_share_link_include_title_desc: >
     分享时在链接前添加视频标题，例如 "视频标题 https://www.bilibili.com/video/BVxxx"
@@ -1520,7 +1520,7 @@ home:
   recommendation_failed: 首页推荐加载失败：{reason}
   app_recommendation_failed: App 推荐数据加载失败：{reason}
   recommendation_failure_reason:
-    background: 扩展后台连接已中断，请刷新页面；仍然失败时请在扩展管理页重新启用 BewlyCat
+    background: 扩展后台连接已中断，请刷新页面；仍然失败时请在扩展管理页重新启用 BewlyIris
     offline: 网络已断开，请恢复联网后刷新重试
     timeout: 请求超时，可能是网络较慢，或代理、IPv6 线路异常，请检查网络后刷新重试
     network: 无法连接 B 站服务器，请检查网络和代理设置，并确认广告拦截等扩展没有拦截 B 站接口
@@ -1636,7 +1636,7 @@ favorites:
   unfav_seasons_failed: '{count} 个合集取消收藏失败'
 version_reminder:
   trigger: 新版本说明
-  title: BewlyCat 已更新
+  title: BewlyIris 已更新
   current_version: 当前版本 v{version}
   description: 查看本版本的更新记录与最新动态。确认后，本版本将不再显示提醒。
   usage_guide: 使用帮助
